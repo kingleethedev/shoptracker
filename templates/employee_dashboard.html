@@ -1,0 +1,1047 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Dashboard - Caspian Shop{% endblock %}
+
+{% block content %}
+<!-- Employee Dashboard Container -->
+<div class="employee-dashboard">
+    <!-- Top Navigation Bar -->
+    <nav class="employee-navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <div class="brand-logo">
+                    <i class="bi bi-shop-window"></i>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">Caspian Shop</span>
+                    <span class="brand-mode">Employee Mode</span>
+                </div>
+            </div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <i class="bi bi-person-circle"></i>
+                    <span class="username">{{ current_user.username }}</span>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <div class="welcome-section">
+                <h1 class="welcome-title">Quick Sale Dashboard</h1>
+                <p class="welcome-subtitle">Record sales quickly and efficiently. All prices in KES.</p>
+            </div>
+            
+            <div class="time-display">
+                <div class="time-item">
+                    <i class="bi bi-clock"></i>
+                    <span>{{ now.strftime('%I:%M %p') }}</span>
+                </div>
+                <div class="time-item">
+                    <i class="bi bi-calendar"></i>
+                    <span>{{ now.strftime('%d %b %Y') }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-content">
+        <!-- Left Column: Sale Form -->
+        <div class="content-column main">
+            <!-- Sale Recording Card -->
+            <div class="sale-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="bi bi-cart-plus"></i>
+                        <h3>Record New Sale</h3>
+                    </div>
+                </div>
+                
+                <form method="POST" action="{{ url_for('sell_product') }}" id="saleForm" class="sale-form">
+                    <!-- Product Selection -->
+                    <div class="form-section">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="product_id" class="form-label">
+                                    <i class="bi bi-box"></i>
+                                    <span>Select Product</span>
+                                </label>
+                                <select class="form-select" 
+                                        id="product_id" 
+                                        name="product_id" 
+                                        required
+                                        onchange="updateProductDetails()">
+                                    <option value="">Choose a product...</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}" 
+                                            data-price="{{ product.selling_price }}"
+                                            data-stock="{{ product.quantity }}"
+                                            data-image="{{ url_for('uploaded_file', filename=product.image_filename) if product.image_filename else url_for('static', filename='img/default-product.png') }}">
+                                        {{ product.name }} - KES {{ "%.2f"|format(product.selling_price) }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="quantity" class="form-label">
+                                    <i class="bi bi-123"></i>
+                                    <span>Quantity</span>
+                                </label>
+                                <div class="quantity-input">
+                                    <input type="number" 
+                                           class="form-input" 
+                                           id="quantity" 
+                                           name="quantity" 
+                                           min="1" 
+                                           value="1" 
+                                           required
+                                           oninput="calculateTotal()">
+                                    <div class="quantity-controls">
+                                        <button type="button" class="quantity-btn" onclick="adjustQuantity(-1)">-</button>
+                                        <button type="button" class="quantity-btn" onclick="adjustQuantity(1)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Details Preview -->
+                    <div class="product-preview">
+                        <div class="preview-image">
+                            <img id="productImage" 
+                                 src="{{ url_for('static', filename='img/default-product.png') }}" 
+                                 alt="Product Image">
+                        </div>
+                        
+                        <div class="preview-details">
+                            <div class="detail-grid">
+                                <div class="detail-item">
+                                    <span class="detail-label">Unit Price</span>
+                                    <span class="detail-value" id="unitPrice">KES 0.00</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <span class="detail-label">Available Stock</span>
+                                    <span class="detail-value stock" id="availableStock">0</span>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <span class="detail-label">Total Amount</span>
+                                    <span class="detail-value total" id="totalAmount">KES 0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="form-actions">
+                        <button type="submit" class="submit-btn">
+                            <i class="bi bi-check-circle"></i>
+                            <span>Record Sale</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Recent Sales -->
+            <div class="recent-sales">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="bi bi-clock-history"></i>
+                        <h3>Recent Sales</h3>
+                    </div>
+                </div>
+                
+                <div class="sales-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in recent_sales %}
+                            <tr>
+                                <td>
+                                    <div class="time-cell">
+                                        {% if sale.sale_date %}
+                                            {% if sale.sale_date is string %}
+                                                {{ sale.sale_date.split(' ')[1][:5] if ' ' in sale.sale_date else sale.sale_date[:5] }}
+                                            {% else %}
+                                                {{ sale.sale_date.strftime('%I:%M %p') }}
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="product-cell">
+                                        <span class="product-name">{{ sale.product_name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="quantity-cell">
+                                        <span class="quantity-value">{{ sale.quantity_sold }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="total-cell">
+                                        <span class="total-amount">KES {{ "%.2f"|format(sale.total_price) }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="empty-state">
+                                    <div class="empty-content">
+                                        <i class="bi bi-receipt"></i>
+                                        <span>No recent sales</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Products & Stats -->
+        <div class="content-column sidebar">
+            <!-- Available Products -->
+            <div class="products-grid">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                        <h3>Available Products</h3>
+                    </div>
+                </div>
+                
+                <div class="products-container">
+                    {% for product in products %}
+                    <div class="product-card" onclick="selectProduct({{ product.id }})">
+                        <div class="product-image">
+                            <img src="{{ url_for('uploaded_file', filename=product.image_filename) if product.image_filename else url_for('static', filename='img/default-product.png') }}" 
+                                 alt="{{ product.name }}"
+                                 onerror="this.src='{{ url_for('static', filename='img/default-product.png') }}'">
+                        </div>
+                        
+                        <div class="product-info">
+                            <h4 class="product-name">{{ product.name }}</h4>
+                            <div class="product-price">KES {{ "%.2f"|format(product.selling_price) }}</div>
+                            <div class="product-stock {% if product.quantity > 10 %}high{% elif product.quantity > 5 %}medium{% else %}low{% endif %}">
+                                {{ product.quantity }} in stock
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-products">
+                        <div class="empty-content">
+                            <i class="bi bi-box-seam"></i>
+                            <span>No products available</span>
+                            <small>Contact admin to add products</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Today's Summary -->
+            <div class="today-summary">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="bi bi-graph-up"></i>
+                        <h3>Today's Summary</h3>
+                    </div>
+                </div>
+                
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Sales Count</div>
+                        <div class="summary-value">{{ today_sales|length }}</div>
+                    </div>
+                    
+                    <div class="summary-item">
+                        <div class="summary-label">Items Sold</div>
+                        <div class="summary-value">{{ today_sales|sum(attribute='quantity_sold') if today_sales else 0 }}</div>
+                    </div>
+                    
+                    <div class="summary-item">
+                        <div class="summary-label">Total Revenue</div>
+                        <div class="summary-value revenue">KES {{ "%.2f"|format(today_sales|sum(attribute='total_price')) if today_sales else 0 }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Employee Dashboard Styles */
+.employee-dashboard {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+/* Navbar */
+.employee-navbar {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    padding: 0 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 70px;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.brand-logo {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+}
+
+.brand-mode {
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.user-info i {
+    font-size: 18px;
+}
+
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px 0;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.welcome-title {
+    font-size: 32px;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+    line-height: 1.2;
+}
+
+.welcome-subtitle {
+    font-size: 16px;
+    color: #64748b;
+    margin: 0;
+}
+
+.time-display {
+    display: flex;
+    gap: 20px;
+}
+
+.time-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.time-item i {
+    color: #64748b;
+    font-size: 18px;
+}
+
+.time-item span {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+}
+
+/* Dashboard Content */
+.dashboard-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    gap: 24px;
+}
+
+@media (max-width: 1200px) {
+    .dashboard-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sale Card */
+.sale-card, .recent-sales, .products-grid, .today-summary {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 24px;
+}
+
+.card-header {
+    padding: 24px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.card-title i {
+    font-size: 24px;
+    color: #3b82f6;
+}
+
+.card-title h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+/* Sale Form */
+.sale-form {
+    padding: 24px;
+}
+
+.form-section {
+    margin-bottom: 24px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-group {
+    margin-bottom: 0;
+}
+
+.form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #334155;
+    font-size: 14px;
+}
+
+.form-label i {
+    color: #64748b;
+}
+
+.form-select {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 15px;
+    background: #f8fafc;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.quantity-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.form-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 15px;
+    background: #f8fafc;
+    transition: all 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.quantity-controls {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+}
+
+.quantity-btn {
+    width: 36px;
+    height: 36px;
+    background: #e2e8f0;
+    border: none;
+    border-radius: 8px;
+    color: #334155;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.quantity-btn:hover {
+    background: #cbd5e1;
+    transform: scale(1.1);
+}
+
+/* Product Preview */
+.product-preview {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    padding: 24px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 768px) {
+    .product-preview {
+        grid-template-columns: 1fr;
+    }
+}
+
+.preview-image {
+    height: 200px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+}
+
+.preview-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.detail-item {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.detail-label {
+    display: block;
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.detail-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.detail-value.stock {
+    color: #3b82f6;
+}
+
+.detail-value.total {
+    color: #10b981;
+}
+
+/* Form Actions */
+.form-actions {
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 24px;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s ease;
+}
+
+.submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+}
+
+/* Recent Sales */
+.recent-sales {
+    min-height: 400px;
+}
+
+.sales-table {
+    padding: 0 24px 24px;
+}
+
+.sales-table table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.sales-table thead {
+    background: #f8fafc;
+}
+
+.sales-table th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.sales-table td {
+    padding: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.sales-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.time-cell {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: #475569;
+    font-weight: 500;
+}
+
+.product-cell {
+    max-width: 200px;
+}
+
+.product-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.4;
+}
+
+.quantity-cell {
+    text-align: center;
+}
+
+.quantity-value {
+    display: inline-block;
+    background: #f1f5f9;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    min-width: 40px;
+}
+
+.total-cell {
+    text-align: right;
+}
+
+.total-amount {
+    font-size: 14px;
+    font-weight: 700;
+    color: #10b981;
+    font-family: 'Courier New', monospace;
+}
+
+.empty-state {
+    padding: 48px 24px;
+}
+
+.empty-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: #94a3b8;
+}
+
+.empty-content i {
+    font-size: 48px;
+}
+
+/* Products Grid */
+.products-container {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.product-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+    border-color: #3b82f6;
+}
+
+.product-image {
+    height: 120px;
+    overflow: hidden;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.product-card:hover .product-image img {
+    transform: scale(1.05);
+}
+
+.product-info {
+    padding: 16px;
+}
+
+.product-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.product-price {
+    font-size: 16px;
+    font-weight: 800;
+    color: #3b82f6;
+    margin-bottom: 8px;
+}
+
+.product-stock {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    text-align: center;
+    display: inline-block;
+}
+
+.product-stock.high {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.product-stock.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.product-stock.low {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.empty-products {
+    grid-column: 1 / -1;
+    padding: 48px 24px;
+}
+
+.empty-products .empty-content {
+    gap: 12px;
+}
+
+.empty-products small {
+    font-size: 13px;
+}
+
+/* Today's Summary */
+.today-summary {
+    min-height: 200px;
+}
+
+.summary-grid {
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 768px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.summary-item {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.summary-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.2;
+}
+
+.summary-value.revenue {
+    color: #10b981;
+}
+</style>
+
+<script>
+let selectedProduct = null;
+
+function updateProductDetails() {
+    const select = document.getElementById('product_id');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        selectedProduct = {
+            price: parseFloat(option.getAttribute('data-price')),
+            stock: parseInt(option.getAttribute('data-stock')),
+            image: option.getAttribute('data-image')
+        };
+        
+        document.getElementById('unitPrice').textContent = 'KES ' + selectedProduct.price.toFixed(2);
+        document.getElementById('availableStock').textContent = selectedProduct.stock;
+        document.getElementById('productImage').src = selectedProduct.image;
+        document.getElementById('quantity').max = selectedProduct.stock;
+        
+        calculateTotal();
+    } else {
+        selectedProduct = null;
+        document.getElementById('unitPrice').textContent = 'KES 0.00';
+        document.getElementById('availableStock').textContent = '0';
+        document.getElementById('productImage').src = "{{ url_for('static', filename='img/default-product.png') }}";
+        document.getElementById('totalAmount').textContent = 'KES 0.00';
+    }
+}
+
+function calculateTotal() {
+    if (!selectedProduct) return;
+    
+    const quantity = parseInt(document.getElementById('quantity').value) || 1;
+    const total = selectedProduct.price * quantity;
+    document.getElementById('totalAmount').textContent = 'KES ' + total.toFixed(2);
+}
+
+function adjustQuantity(change) {
+    const input = document.getElementById('quantity');
+    let currentValue = parseInt(input.value) || 1;
+    
+    if (!selectedProduct) return;
+    
+    const newValue = currentValue + change;
+    if (newValue >= 1 && newValue <= selectedProduct.stock) {
+        input.value = newValue;
+        calculateTotal();
+    }
+}
+
+function selectProduct(productId) {
+    document.getElementById('product_id').value = productId;
+    updateProductDetails();
+}
+
+// Form validation
+document.getElementById('saleForm').addEventListener('submit', function(e) {
+    if (!selectedProduct) {
+        e.preventDefault();
+        alert('Please select a product.');
+        return;
+    }
+    
+    const quantity = parseInt(document.getElementById('quantity').value);
+    if (quantity < 1) {
+        e.preventDefault();
+        alert('Quantity must be at least 1.');
+        return;
+    }
+    
+    if (quantity > selectedProduct.stock) {
+        e.preventDefault();
+        alert('Not enough stock available. Only ' + selectedProduct.stock + ' units left.');
+        return;
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateProductDetails();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,647 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Products Management - Caspian Shop{% endblock %}
+
+{% block page_title %}Products Management{% endblock %}
+
+{% block admin_content %}
+<!-- Header -->
+<div class="page-header">
+    <div class="header-content">
+        <h1 class="page-title">Products Management</h1>
+        <p class="page-subtitle">Add, edit, or remove products from inventory</p>
+    </div>
+    <a href="{{ url_for('admin_add_product') }}" class="btn-primary">
+        <i class="bi bi-plus-lg"></i>
+        <span>Add New Product</span>
+    </a>
+</div>
+
+<!-- Statistics -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-content">
+            <div class="kpi-header">
+                <span class="kpi-label">Total Products</span>
+                <div class="kpi-icon">
+                    <i class="bi bi-box"></i>
+                </div>
+            </div>
+            <h3 class="kpi-value">{{ products|length }}</h3>
+            <div class="kpi-trend">
+                <span class="trend-neutral">All products</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-content">
+            <div class="kpi-header">
+                <span class="kpi-label">Items in Stock</span>
+                <div class="kpi-icon">
+                    <i class="bi bi-layers"></i>
+                </div>
+            </div>
+            <h3 class="kpi-value">{{ products|sum(attribute='quantity') }}</h3>
+            <div class="kpi-trend">
+                <span class="trend-neutral">Total units</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-content">
+            <div class="kpi-header">
+                <span class="kpi-label">Inventory Value</span>
+                <div class="kpi-icon">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <h3 class="kpi-value">KES {{ "%.0f"|format(products|sum(attribute='selling_price') * products|sum(attribute='quantity')) }}</h3>
+            <div class="kpi-trend">
+                <span class="trend-neutral">Total value</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-content">
+            <div class="kpi-header">
+                <span class="kpi-label">Low Stock</span>
+                <div class="kpi-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+            </div>
+            <h3 class="kpi-value">{{ products|selectattr('quantity', '<=', 5)|list|length }}</h3>
+            <div class="kpi-trend">
+                <span class="trend-warning">Need attention</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Products List</h5>
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" class="search-input" placeholder="Search products..." id="productSearch">
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="data-table">
+            <table class="table" id="productsTable">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Product Name</th>
+                        <th>Buying Price</th>
+                        <th>Selling Price</th>
+                        <th>Stock</th>
+                        <th>Profit/Unit</th>
+                        <th>Total Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>
+                            <div class="product-image-cell">
+                                <img src="{{ url_for('uploaded_file', filename=product.image_filename) if product.image_filename else url_for('static', filename='img/default-product.png') }}" 
+                                     alt="{{ product.name }}"
+                                     onerror="this.src='{{ url_for('static', filename='img/default-product.png') }}'">
+                            </div>
+                        </td>
+                        <td>
+                            <div class="product-info-cell">
+                                <h6 class="product-name">{{ product.name }}</h6>
+                                {% if product.quantity <= 5 %}
+                                <span class="badge-danger">Low Stock</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="price-cell">
+                                <span class="price-label">KES</span>
+                                <span class="price-amount">{{ "%.2f"|format(product.buying_price) }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="price-cell">
+                                <span class="price-label">KES</span>
+                                <span class="price-amount selling">{{ "%.2f"|format(product.selling_price) }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="stock-cell {% if product.quantity <= 5 %}danger{% elif product.quantity <= 10 %}warning{% else %}good{% endif %}">
+                                <span class="stock-value">{{ product.quantity }}</span>
+                                <span class="stock-unit">units</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="profit-cell">
+                                <span class="profit-value">KES {{ "%.2f"|format(product.selling_price - product.buying_price) }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="value-cell">
+                                <span class="value-amount">KES {{ "%.2f"|format(product.selling_price * product.quantity) }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-cell">
+                                <a href="{{ url_for('admin_edit_product', product_id=product.id) }}" 
+                                   class="btn-action edit">
+                                    <i class="bi bi-pencil"></i>
+                                    <span>Edit</span>
+                                </a>
+                                <button class="btn-action delete" 
+                                        onclick="confirmDelete({{ product.id }}, '{{ product.name }}')">
+                                    <i class="bi bi-trash"></i>
+                                    <span>Delete</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-content">
+                                <i class="bi bi-box-seam"></i>
+                                <p>No products found</p>
+                                <a href="{{ url_for('admin_add_product') }}" class="btn-primary">
+                                    <i class="bi bi-plus-lg"></i>
+                                    <span>Add First Product</span>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Page Header */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.header-content {
+    flex: 1;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a237e;
+    margin: 0 0 4px 0;
+}
+
+.page-subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+/* KPI Grid */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.kpi-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eef2f7;
+    transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border-color: #e0e7ff;
+}
+
+.kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.kpi-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.kpi-value {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.2;
+    color: #1e293b;
+}
+
+.kpi-trend {
+    font-size: 13px;
+    font-weight: 500;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.trend-warning {
+    color: #f59e0b;
+}
+
+.trend-neutral {
+    color: #64748b;
+}
+
+/* Dashboard Card */
+.dashboard-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eef2f7;
+    margin-bottom: 24px;
+}
+
+.card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #eef2f7;
+    background: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.search-box {
+    position: relative;
+    width: 300px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 16px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 16px 10px 44px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.card-body {
+    padding: 24px;
+}
+
+/* Data Table */
+.data-table {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table thead th {
+    background: #f8fafc;
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.table tbody td {
+    padding: 16px;
+    vertical-align: middle;
+}
+
+/* Product Image Cell */
+.product-image-cell {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+}
+
+.product-image-cell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Product Info Cell */
+.product-info-cell {
+    min-width: 200px;
+}
+
+.product-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+    line-height: 1.4;
+}
+
+.badge-danger {
+    display: inline-block;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Price Cells */
+.price-cell {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.price-label {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.price-amount {
+    font-size: 15px;
+    font-weight: 600;
+    color: #334155;
+    font-family: 'Courier New', monospace;
+}
+
+.price-amount.selling {
+    color: #667eea;
+}
+
+/* Stock Cell */
+.stock-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stock-cell.good {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.stock-cell.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.stock-cell.danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.stock-value {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.stock-unit {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Profit & Value Cells */
+.profit-cell, .value-cell {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+}
+
+.profit-value {
+    color: #10b981;
+    font-size: 15px;
+}
+
+.value-amount {
+    color: #1e293b;
+    font-size: 15px;
+}
+
+/* Action Cell */
+.action-cell {
+    display: flex;
+    gap: 8px;
+    min-width: 150px;
+}
+
+.btn-action {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 2px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action.edit {
+    background: white;
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.btn-action.edit:hover {
+    background: #3b82f6;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.btn-action.delete {
+    background: white;
+    color: #ef4444;
+    border-color: #ef4444;
+}
+
+.btn-action.delete:hover {
+    background: #ef4444;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Empty State */
+.empty-state {
+    padding: 48px 24px;
+}
+
+.empty-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.empty-content i {
+    font-size: 48px;
+    color: #cbd5e1;
+}
+
+.empty-content p {
+    color: #64748b;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .search-box {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-cell {
+        flex-direction: column;
+    }
+    
+    .btn-action {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(productId, productName) {
+    if (confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+        window.location.href = `/admin/products/delete/${productId}`;
+    }
+}
+
+// Search functionality
+document.getElementById('productSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#productsTable tbody tr');
+    
+    rows.forEach(row => {
+        const productName = row.querySelector('.product-name').textContent.toLowerCase();
+        row.style.display = productName.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}
