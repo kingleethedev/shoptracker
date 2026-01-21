@@ -1,0 +1,441 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Add Expense - Caspian Shop{% endblock %}
+
+{% block page_title %}Add New Expense{% endblock %}
+{% block page_subtitle %}Record operating costs or cost of goods sold{% endblock %}
+
+{% block admin_content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Expense Details</h5>
+        <span class="card-subtitle">Fill in the expense information</span>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('admin_add_expense') }}" class="expense-form">
+            <!-- Category Selection -->
+            <div class="form-group">
+                <label for="category_id" class="form-label required">
+                    <i class="bi bi-tag"></i> Expense Category
+                </label>
+                <select class="form-control" id="category_id" name="category_id" required>
+                    <option value="">Select a category</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">
+                        {{ category.name }} ({{ category.category_type|upper }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">
+                    Choose an existing category or 
+                    <a href="{{ url_for('admin_expense_categories') }}" class="text-primary">
+                        manage categories
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Amount -->
+            <div class="form-group">
+                <label for="amount" class="form-label required">
+                    <i class="bi bi-cash-coin"></i> Amount (KES)
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">KES</span>
+                    <input type="number" 
+                           class="form-control" 
+                           id="amount" 
+                           name="amount" 
+                           step="0.01" 
+                           min="0.01" 
+                           placeholder="0.00" 
+                           required>
+                </div>
+                <div class="form-text">
+                    Enter the expense amount in Kenyan Shillings
+                </div>
+            </div>
+            
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description" class="form-label">
+                    <i class="bi bi-textarea-t"></i> Description
+                </label>
+                <textarea class="form-control" 
+                          id="description" 
+                          name="description" 
+                          rows="3" 
+                          placeholder="Enter expense description (optional)"></textarea>
+                <div class="form-text">
+                    Provide details about this expense (e.g., "January rent payment", "Office supplies for Q1")
+                </div>
+            </div>
+            
+            <!-- Expense Type Info -->
+            <div class="alert alert-info">
+                <div class="alert-icon">
+                    <i class="bi bi-info-circle"></i>
+                </div>
+                <div class="alert-content">
+                    <h6>Understanding Expense Types:</h6>
+                    <ul class="mb-0">
+                        <li><strong>Operating Expenses</strong>: Rent, salaries, utilities, marketing, office supplies, etc.</li>
+                        <li><strong>COGS (Cost of Goods Sold)</strong>: Direct costs of products sold, manufacturing costs, etc.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <a href="{{ url_for('admin_expenses') }}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i>
+                    <span>Cancel</span>
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i>
+                    <span>Save Expense</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Recent Expenses Preview -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Recent Expenses</h5>
+        <span class="card-subtitle">Last 5 recorded expenses</span>
+    </div>
+    <div class="card-body">
+        {% set recent_expenses = categories[0:5] if categories else [] %}
+        {% if recent_expenses %}
+        <div class="recent-expenses">
+            {% for category in recent_expenses %}
+            <div class="recent-item">
+                <div class="recent-category">
+                    <span class="category-name">{{ category.name }}</span>
+                    <span class="category-type {{ category.category_type }}">
+                        {{ category.category_type|upper }}
+                    </span>
+                </div>
+                <div class="recent-info">
+                    <span class="expense-count">Commonly used</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-content">
+                <i class="bi bi-wallet2"></i>
+                <p>No expense categories yet</p>
+                <a href="{{ url_for('admin_expense_categories') }}" class="btn btn-outline-primary btn-sm mt-2">
+                    <i class="bi bi-plus"></i> Create Categories First
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Form Styles */
+.expense-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-label.required::after {
+    content: '*';
+    color: #ef4444;
+    margin-left: 4px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-control select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-chevron-down' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 16px;
+    padding-right: 40px;
+}
+
+.input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.input-group-text {
+    padding: 12px 16px;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.input-group .form-control {
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-text {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
+}
+
+.text-primary {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.text-primary:hover {
+    text-decoration: underline;
+}
+
+/* Alert */
+.alert {
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.alert-info {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    color: #1e40af;
+}
+
+.alert-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.alert-content h6 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.alert-content ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.alert-content li {
+    font-size: 13px;
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* Recent Expenses */
+.recent-expenses {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.recent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.recent-category {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.category-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+}
+
+.category-type {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.category-type.operating {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.category-type.cogs {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.recent-info .expense-count {
+    font-size: 12px;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Empty States */
+.empty-state {
+    padding: 32px 24px;
+    text-align: center;
+}
+
+.empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.empty-content i {
+    font-size: 36px;
+    color: #cbd5e1;
+}
+
+.empty-content p {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    border: 2px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: white;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.btn-outline-primary {
+    background: white;
+    color: #667eea;
+    border-color: #667eea;
+    padding: 8px 16px;
+}
+
+.btn-outline-primary:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .expense-form {
+        max-width: 100%;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .recent-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .recent-info {
+        text-align: right;
+    }
+}
+</style>
+{% endblock %}

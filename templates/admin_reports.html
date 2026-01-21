@@ -10,28 +10,38 @@
     <div class="card-body">
         <div class="filter-row">
             <div class="filter-group">
-                <label for="reportPeriod" class="form-label">
-                    <i class="bi bi-calendar"></i> Report Period
+                <label for="startDate" class="form-label">
+                    <i class="bi bi-calendar"></i> Start Date
                 </label>
-                <select class="form-select" id="reportPeriod">
-                    <option value="7">Last 7 Days</option>
-                    <option value="30" selected>Last 30 Days</option>
-                    <option value="90">Last 90 Days</option>
-                    <option value="365">Last Year</option>
-                </select>
+                <input type="date" class="form-select" id="startDate" value="{{ request.args.get('start_date', '') }}">
+            </div>
+            
+            <div class="filter-group">
+                <label for="endDate" class="form-label">
+                    <i class="bi bi-calendar"></i> End Date
+                </label>
+                <input type="date" class="form-select" id="endDate" value="{{ request.args.get('end_date', '') }}">
             </div>
             
             <div class="filter-group">
                 <label class="form-label">&nbsp;</label>
-                <button type="button" class="btn-primary" onclick="loadCharts()">
-                    <i class="bi bi-arrow-clockwise"></i>
-                    <span>Update</span>
+                <button type="button" class="btn-primary" onclick="applyDateFilter()">
+                    <i class="bi bi-funnel"></i>
+                    <span>Filter</span>
+                </button>
+                <button type="button" class="btn-secondary" onclick="clearDateFilter()">
+                    <i class="bi bi-x-circle"></i>
+                    <span>Clear</span>
                 </button>
             </div>
             
             <div class="filter-group">
                 <label class="form-label">&nbsp;</label>
                 <div class="action-buttons">
+                    <a href="{{ url_for('admin_profit_analysis') }}" class="btn btn-outline-success">
+                        <i class="bi bi-graph-up"></i>
+                        <span>Profit Analysis</span>
+                    </a>
                     <button type="button" class="btn-secondary" onclick="window.print()">
                         <i class="bi bi-printer"></i>
                     </button>
@@ -44,20 +54,84 @@
     </div>
 </div>
 
-<!-- KPI Summary -->
+<!-- Profit Summary -->
+<div class="profit-summary-grid">
+    <div class="summary-card total-revenue">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Total Revenue</span>
+                <div class="summary-icon">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <h3 class="summary-value">KES {{ "%.0f"|format(profit_per_product|sum(attribute='total_revenue')) }}</h3>
+            <div class="summary-detail">
+                <span>{{ profit_per_product|sum(attribute='total_quantity') }} total units</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="summary-card gross-profit">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Gross Profit</span>
+                <div class="summary-icon">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+            </div>
+            <h3 class="summary-value">KES {{ "%.0f"|format(profit_per_product|sum(attribute='total_profit')) }}</h3>
+            <div class="summary-detail">
+                <span><i class="bi bi-percent"></i> {{ "%.1f"|format(gross_profit_margin) }}% margin</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="summary-card operating-expenses">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Operating Expenses</span>
+                <div class="summary-icon">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+            <h3 class="summary-value">KES {{ "%.0f"|format(total_expenses) }}</h3>
+            <div class="summary-detail">
+                <span>Rent, salaries, utilities, etc.</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="summary-card net-profit">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Net Profit</span>
+                <div class="summary-icon">
+                    <i class="bi bi-currency-exchange"></i>
+                </div>
+            </div>
+            <h3 class="summary-value">KES {{ "%.0f"|format(net_profit) }}</h3>
+            <div class="summary-detail">
+                <span><i class="bi bi-percent"></i> {{ "%.1f"|format(net_profit_margin) }}% margin</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Stats -->
 <div class="kpi-grid">
     <div class="kpi-card">
         <div class="kpi-content">
             <div class="kpi-header">
                 <span class="kpi-label">Daily Sales Avg</span>
                 <div class="kpi-icon">
-                    <i class="bi bi-cash-stack"></i>
+                    <i class="bi bi-calendar-day"></i>
                 </div>
             </div>
             <h3 class="kpi-value">KES {{ "%.0f"|format(daily_avg_revenue) }}</h3>
             <div class="kpi-trend">
-                <span class="trend-positive">
-                    <i class="bi bi-arrow-up"></i> {{ "%.1f"|format(growth_rate) }}%
+                <span class="trend-{% if growth_rate >= 0 %}positive{% else %}warning{% endif %}">
+                    <i class="bi bi-arrow-{% if growth_rate >= 0 %}up{% else %}down{% endif %}"></i> 
+                    {{ "%.1f"|format(growth_rate) }}%
                 </span>
             </div>
         </div>
@@ -68,12 +142,12 @@
             <div class="kpi-header">
                 <span class="kpi-label">Daily Profit Avg</span>
                 <div class="kpi-icon">
-                    <i class="bi bi-graph-up-arrow"></i>
+                    <i class="bi bi-coin"></i>
                 </div>
             </div>
             <h3 class="kpi-value">KES {{ "%.0f"|format(daily_avg_profit) }}</h3>
             <div class="kpi-trend">
-                <span class="trend-neutral">{{ "%.1f"|format(profit_margin) }}% margin</span>
+                <span class="trend-neutral">{{ "%.1f"|format(gross_profit_margin) }}% margin</span>
             </div>
         </div>
     </div>
@@ -149,14 +223,53 @@
     </div>
 </div>
 
-<!-- Product Performance -->
+<!-- Profit vs Expenses Chart -->
 <div class="dashboard-card">
     <div class="card-header">
-        <h5 class="card-title">Product Performance</h5>
+        <h5 class="card-title">Profit vs Expenses Analysis</h5>
     </div>
     <div class="card-body">
-        <div class="chart-container">
-            <canvas id="productPerformanceChart"></canvas>
+        <div class="profit-expense-chart">
+            <div class="chart-row">
+                <div class="chart-label">Revenue</div>
+                <div class="chart-bar">
+                    <div class="bar-fill revenue-bar" style="width: 100%">
+                        <span class="bar-value">KES {{ "%.0f"|format(profit_per_product|sum(attribute='total_revenue')) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-row">
+                <div class="chart-label">Gross Profit</div>
+                <div class="chart-bar">
+                    {% set revenue = profit_per_product|sum(attribute='total_revenue') %}
+                    {% set gross_profit = profit_per_product|sum(attribute='total_profit') %}
+                    {% set gross_width = (gross_profit / revenue * 100) if revenue > 0 else 0 %}
+                    <div class="bar-fill gross-profit-bar" style="width: {{ gross_width }}%">
+                        <span class="bar-value">KES {{ "%.0f"|format(gross_profit) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-row">
+                <div class="chart-label">Operating Expenses</div>
+                <div class="chart-bar">
+                    {% set expense_width = (total_expenses / revenue * 100) if revenue > 0 else 0 %}
+                    <div class="bar-fill expense-bar" style="width: {{ expense_width }}%">
+                        <span class="bar-value">KES {{ "%.0f"|format(total_expenses) }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-row">
+                <div class="chart-label">Net Profit</div>
+                <div class="chart-bar">
+                    {% set net_profit_width = (net_profit / revenue * 100) if revenue > 0 else 0 %}
+                    <div class="bar-fill net-profit-bar" style="width: {{ net_profit_width }}%">
+                        <span class="bar-value">KES {{ "%.0f"|format(net_profit) }}</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -174,7 +287,7 @@
                 <div class="product-rank">{{ loop.index }}</div>
                 <div class="product-info">
                     <h6>{{ product.product_name }}</h6>
-                    <span>{{ product.total_quantity }} units</span>
+                    <span>{{ product.total_quantity }} units • KES {{ "%.0f"|format(product.total_revenue) }} revenue</span>
                 </div>
                 <div class="product-profit">
                     <strong>KES {{ "%.0f"|format(product.total_profit) }}</strong>
@@ -197,7 +310,7 @@
 <!-- Detailed Analysis -->
 <div class="dashboard-card">
     <div class="card-header">
-        <h5 class="card-title">Detailed Analysis</h5>
+        <h5 class="card-title">Detailed Product Analysis</h5>
     </div>
     <div class="card-body">
         <div class="data-table">
@@ -205,10 +318,10 @@
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th>Units</th>
+                        <th>Units Sold</th>
                         <th>Revenue</th>
-                        <th>Profit</th>
-                        <th>Margin</th>
+                        <th>Gross Profit</th>
+                        <th>Profit Margin</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -238,6 +351,15 @@
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr class="table-total">
+                        <td><strong>Total</strong></td>
+                        <td><strong>{{ profit_per_product|sum(attribute='total_quantity') }}</strong></td>
+                        <td class="text-primary"><strong>KES {{ "%.0f"|format(profit_per_product|sum(attribute='total_revenue')) }}</strong></td>
+                        <td class="text-success"><strong>KES {{ "%.0f"|format(profit_per_product|sum(attribute='total_profit')) }}</strong></td>
+                        <td><strong>{{ "%.1f"|format(gross_profit_margin) }}%</strong></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
@@ -288,9 +410,10 @@
 .action-buttons {
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
-.btn-primary, .btn-secondary {
+.btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -298,7 +421,8 @@
     border-radius: 8px;
     font-weight: 600;
     font-size: 14px;
-    border: none;
+    text-decoration: none;
+    border: 2px solid;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -306,6 +430,7 @@
 .btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
+    border-color: transparent;
 }
 
 .btn-primary:hover {
@@ -316,13 +441,165 @@
 .btn-secondary {
     background: white;
     color: #475569;
-    border: 2px solid #e2e8f0;
-    padding: 10px;
+    border-color: #e2e8f0;
+    padding: 10px 16px;
 }
 
 .btn-secondary:hover {
     background: #f1f5f9;
     border-color: #cbd5e1;
+}
+
+.btn-outline-success {
+    background: white;
+    color: #10b981;
+    border-color: #10b981;
+}
+
+.btn-outline-success:hover {
+    background: #10b981;
+    color: white;
+}
+
+/* Profit Summary Grid */
+.profit-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin: 24px 0;
+}
+
+.summary-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+    position: relative;
+    overflow: hidden;
+}
+
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.summary-card.total-revenue {
+    border-color: rgba(102, 126, 234, 0.2);
+}
+
+.summary-card.total-revenue::before {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.summary-card.gross-profit {
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.summary-card.gross-profit::before {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.summary-card.operating-expenses {
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.summary-card.operating-expenses::before {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.summary-card.net-profit {
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.summary-card.net-profit::before {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+.summary-content {
+    position: relative;
+    z-index: 1;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.summary-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.summary-card.total-revenue .summary-icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.summary-card.gross-profit .summary-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.summary-card.operating-expenses .summary-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.summary-card.net-profit .summary-icon {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.summary-value {
+    font-size: 36px;
+    font-weight: 800;
+    margin: 24px 0;
+    line-height: 1.2;
+}
+
+.summary-card.total-revenue .summary-value {
+    color: #667eea;
+}
+
+.summary-card.gross-profit .summary-value {
+    color: #10b981;
+}
+
+.summary-card.operating-expenses .summary-value {
+    color: #f59e0b;
+}
+
+.summary-card.net-profit .summary-value {
+    color: #8b5cf6;
+}
+
+.summary-detail {
+    font-size: 14px;
+    font-weight: 500;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+    color: #64748b;
+}
+
+.summary-detail i {
+    margin-right: 4px;
 }
 
 /* KPI Grid */
@@ -396,6 +673,13 @@
     gap: 4px;
 }
 
+.trend-warning {
+    color: #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .trend-neutral {
     color: #64748b;
 }
@@ -463,6 +747,68 @@
 .empty-chart p {
     margin: 0;
     font-size: 14px;
+}
+
+/* Profit vs Expenses Chart */
+.profit-expense-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+}
+
+.chart-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.chart-label {
+    width: 200px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.chart-bar {
+    flex: 1;
+    height: 40px;
+    background: #f1f5f9;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+.bar-fill {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-radius: 20px;
+    transition: width 1s ease;
+}
+
+.revenue-bar {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.gross-profit-bar {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.expense-bar {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.net-profit-bar {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+.bar-value {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Products Grid */
@@ -555,6 +901,15 @@
     background: #f8fafc;
 }
 
+.table-total {
+    background: #f8fafc;
+    font-weight: 600;
+}
+
+.table-total td {
+    border-top: 2px solid #e2e8f0;
+}
+
 .text-primary {
     color: #667eea;
     font-weight: 600;
@@ -612,6 +967,16 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+    .profit-summary-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .filter-row {
         flex-direction: column;
@@ -621,12 +986,40 @@
         width: 100%;
     }
     
-    .charts-grid {
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .profit-summary-grid {
         grid-template-columns: 1fr;
     }
     
     .kpi-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .chart-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    .chart-label {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .chart-bar {
+        height: 30px;
+    }
+    
+    .bar-fill {
+        padding: 0 10px;
+    }
+    
+    .bar-value {
+        font-size: 12px;
     }
 }
 </style>
@@ -634,73 +1027,27 @@
 
 {% block extra_js %}
 <script>
-let productChart = null;
-
-function loadCharts() {
-    // Get data from table
-    const tableRows = document.querySelectorAll('tbody tr');
-    const productNames = [];
-    const revenues = [];
-    const profits = [];
+function applyDateFilter() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
     
-    tableRows.forEach((row, index) => {
-        if (index < 6) { // Limit to 6 products for readability
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 5) {
-                const name = cells[0].textContent.trim();
-                const revenue = parseFloat(cells[2].textContent.replace('KES', '').replace(',', '').trim()) || 0;
-                const profit = parseFloat(cells[3].textContent.replace('KES', '').replace(',', '').trim()) || 0;
-                
-                productNames.push(name.length > 15 ? name.substring(0, 15) + '...' : name);
-                revenues.push(revenue);
-                profits.push(profit);
-            }
-        }
-    });
+    let url = '{{ url_for("admin_reports") }}';
+    const params = new URLSearchParams();
     
-    // Destroy existing chart
-    if (productChart) {
-        productChart.destroy();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    
+    if (params.toString()) {
+        url += '?' + params.toString();
     }
     
-    // Create new chart
-    const ctx = document.getElementById('productPerformanceChart').getContext('2d');
-    productChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: productNames,
-            datasets: [
-                {
-                    label: 'Revenue',
-                    data: revenues,
-                    backgroundColor: 'rgba(102, 126, 234, 0.7)',
-                    borderColor: 'rgba(102, 126, 234, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Profit',
-                    data: profits,
-                    backgroundColor: 'rgba(16, 185, 129, 0.7)',
-                    borderColor: 'rgba(16, 185, 129, 1)',
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return 'KES ' + value.toLocaleString('en-KE');
-                        }
-                    }
-                }
-            }
-        }
-    });
+    window.location.href = url;
+}
+
+function clearDateFilter() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    window.location.href = '{{ url_for("admin_reports") }}';
 }
 
 function exportReport() {
@@ -719,23 +1066,34 @@ function exportReport() {
         const rowData = [];
         row.querySelectorAll('td').forEach(td => {
             let text = td.textContent.trim();
-            text = text.replace('KES', '').trim();
+            // Clean up data
+            if (text.includes('KES')) {
+                text = text.replace('KES', '').trim();
+            }
             rowData.push(`"${text}"`);
         });
         csv.push(rowData.join(','));
     });
     
+    // Total row
+    const totalRow = [];
+    table.querySelectorAll('tfoot td').forEach(td => {
+        let text = td.textContent.trim();
+        if (text.includes('KES')) {
+            text = text.replace('KES', '').trim();
+        }
+        totalRow.push(`"${text}"`);
+    });
+    csv.push(totalRow.join(','));
+    
     const csvContent = 'data:text/csv;charset=utf-8,' + csv.join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `business_report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 }
-
-// Initialize chart
-document.addEventListener('DOMContentLoaded', loadCharts);
 </script>
 {% endblock %}

@@ -1,0 +1,662 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Simple Profit Calculator - Caspian Shop{% endblock %}
+
+{% block page_title %}Simple Profit Calculator{% endblock %}
+{% block page_subtitle %}See your real profit after expenses{% endblock %}
+
+{% block admin_content %}
+<div class="simple-calculator">
+    <form id="expenseForm" method="POST">
+        
+        <div class="calculator-step">
+            <h5><span class="step-number">1</span> Your Business Performance</h5>
+            
+            <div class="performance-card">
+                <div class="performance-item">
+                    <div class="performance-label">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Total Sales (Revenue)</span>
+                    </div>
+                    <div class="performance-value" id="autoRevenue">
+                        {% set total_revenue = profit_data.total_revenue if profit_data else 0 %}
+                        KES {{ "%.2f"|format(total_revenue) }}
+                    </div>
+                </div>
+                
+                <div class="performance-item">
+                    <div class="performance-label">
+                        <i class="bi bi-box-seam"></i>
+                        <span>Cost of Products (COGS)</span>
+                    </div>
+                    <div class="performance-value text-danger" id="autoProductCosts">
+                        {% set product_costs = profit_data.total_cogs if profit_data else 0 %}
+                        KES {{ "%.2f"|format(product_costs) }}
+                    </div>
+                </div>
+                
+                <div class="performance-divider">
+                    <div class="divider-line"></div>
+                    <div class="divider-text">GROSS PROFIT</div>
+                    <div class="divider-line"></div>
+                </div>
+                
+                <div class="performance-item highlight">
+                    <div class="performance-label">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <span>Gross Profit</span>
+                    </div>
+                    <div class="performance-value text-success" id="autoGrossProfit">
+                        {% set gross_profit = profit_data.total_gross_profit if profit_data else 0 %}
+                        KES {{ "%.2f"|format(gross_profit) }}
+                    </div>
+                </div>
+                
+                <div class="performance-note">
+                    <i class="bi bi-info-circle"></i>
+                    This is your profit before expenses. Now add your monthly costs below.
+                </div>
+            </div>
+        </div>
+
+        <div class="calculator-step">
+            <h5><span class="step-number">2</span> Add Your Monthly Expenses</h5>
+            <p class="step-description">Enter your regular business expenses below:</p>
+            
+            <div class="expense-section">
+                <div class="expense-category">
+                    <h6><i class="bi bi-building"></i> Shop & Location</h6>
+                    <div class="expense-row">
+                        <label for="rent">Rent:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="rent" name="rent" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="expense-category">
+                    <h6><i class="bi bi-people"></i> Staff & Payroll</h6>
+                    <div class="expense-row">
+                        <label for="ownerSalary">Your Salary:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="ownerSalary" name="owner_salary" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="expense-row">
+                        <label for="employeeSalaries">Employee Salaries:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="employeeSalaries" name="employee_salaries" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="expense-category">
+                    <h6><i class="bi bi-lightning"></i> Utilities</h6>
+                    <div class="expense-row">
+                        <label for="electricity">Electricity:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="electricity" name="electricity" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="expense-row">
+                        <label for="water">Water:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="water" name="water" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="expense-category">
+                    <h6><i class="bi bi-truck"></i> Transport & Logistics</h6>
+                    <div class="expense-row">
+                        <label for="transport">Transport Costs:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="transport" name="transport" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="expense-category">
+                    <h6><i class="bi bi-megaphone"></i> Marketing & Promotion</h6>
+                    <div class="expense-row">
+                        <label for="advertising">Advertising:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="advertising" name="advertising" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="expense-category">
+                    <h6><i class="bi bi-wrench"></i> Other Expenses</h6>
+                    <div class="expense-row">
+                        <label for="miscellaneous">Miscellaneous:</label>
+                        <div class="input-group">
+                            <span class="input-group-text">KES</span>
+                            <input type="number" id="miscellaneous" name="miscellaneous" class="form-control expense-input" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center my-4">
+            <button type="button" onclick="calculateNetProfit()" class="btn btn-primary btn-lg">
+                <i class="bi bi-calculator"></i> Calculate My Real Profit
+            </button>
+            <button type="submit" class="btn btn-success btn-lg ms-3">
+                <i class="bi bi-save"></i> Save Expenses to Database
+            </button>
+        </div>
+    </form>
+
+    <div id="results" class="results-card" style="display: none;">
+        <h4 class="text-center mb-4">Your Real Profit This Month</h4>
+        
+        <div class="result-row">
+            <div class="result-label">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span>Gross Profit (Before Expenses):</span>
+            </div>
+            <div class="result-value text-success" id="resultGrossProfit">KES 0</div>
+        </div>
+        
+        <div class="result-divider">
+            <div class="divider-line"></div>
+            <div class="divider-text">MINUS EXPENSES</div>
+            <div class="divider-line"></div>
+        </div>
+        
+        <div class="expense-breakdown">
+            <div class="expense-item">
+                <span>Rent:</span>
+                <span class="expense-amount" id="expRent">KES 0</span>
+            </div>
+            <div class="expense-item">
+                <span>Salaries:</span>
+                <span class="expense-amount" id="expSalaries">KES 0</span>
+            </div>
+            <div class="expense-item">
+                <span>Utilities:</span>
+                <span class="expense-amount" id="expUtilities">KES 0</span>
+            </div>
+            <div class="expense-item">
+                <span>Transport:</span>
+                <span class="expense-amount" id="expTransport">KES 0</span>
+            </div>
+            <div class="expense-item">
+                <span>Advertising:</span>
+                <span class="expense-amount" id="expAdvertising">KES 0</span>
+            </div>
+            <div class="expense-item">
+                <span>Other:</span>
+                <span class="expense-amount" id="expOther">KES 0</span>
+            </div>
+        </div>
+        
+        <div class="result-row total-expenses">
+            <div class="result-label">
+                <i class="bi bi-cash-coin"></i>
+                <span>Total Monthly Expenses:</span>
+            </div>
+            <div class="result-value text-danger" id="resultTotalExpenses">KES 0</div>
+        </div>
+        
+        <div class="result-divider">
+            <div class="divider-line"></div>
+            <div class="divider-text">NET PROFIT (What you keep)</div>
+            <div class="divider-line"></div>
+        </div>
+        
+        <div class="result-row highlight final">
+            <div class="result-label">
+                <i class="bi bi-wallet2"></i>
+                <span>Your Real Profit:</span>
+            </div>
+            <div class="result-value" id="resultNetProfit">KES 0</div>
+        </div>
+        
+        <div class="profit-message" id="profitMessage"></div>
+        
+        <div class="analysis-card">
+            <h6><i class="bi bi-bar-chart"></i> Quick Analysis:</h6>
+            <div class="analysis-item">
+                <span>Expense Ratio:</span>
+                <span id="expenseRatio">0%</span>
+            </div>
+            <div class="analysis-item">
+                <span>Net Profit Margin:</span>
+                <span id="netMargin">0%</span>
+            </div>
+            <div class="analysis-item">
+                <span>Monthly Profit Goal:</span>
+                <span id="profitGoal">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="example-card">
+        <h5><i class="bi bi-shop"></i> Real Business Example</h5>
+        <div class="example-content">
+            <p><strong>Mama Nelly's Shop (Nairobi)</strong></p>
+            <div class="example-stats">
+                <div class="stat">
+                    <span class="stat-label">Monthly Sales:</span>
+                    <span class="stat-value">KES 150,000</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Product Costs:</span>
+                    <span class="stat-value">KES 90,000</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Gross Profit:</span>
+                    <span class="stat-value success">KES 60,000</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Expenses:</span>
+                    <span class="stat-value danger">KES 40,000</span>
+                </div>
+                <div class="stat highlight">
+                    <span class="stat-label">Real Profit:</span>
+                    <span class="stat-value">KES 20,000</span>
+                </div>
+            </div>
+            <p class="example-tip">
+                <i class="bi bi-lightbulb"></i> 
+                <strong>Tip:</strong> Mama Nelly keeps KES 20,000 after all costs. 
+                Her goal is to reduce expenses to KES 35,000 next month.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* CSS Exactly as you provided with minor layout adjustments for the buttons */
+.simple-calculator {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.calculator-step {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 24px;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+
+.calculator-step h5 {
+    color: #1e293b;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+}
+
+.step-number {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.step-description {
+    color: #64748b;
+    margin-bottom: 20px;
+    font-size: 15px;
+}
+
+.performance-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    padding: 24px;
+    border: 2px solid #e2e8f0;
+}
+
+.performance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.performance-item.highlight {
+    background: #f0f9ff;
+    margin: 0 -24px;
+    padding: 20px 24px;
+    border-radius: 8px;
+    border: 2px solid #3b82f6;
+}
+
+.performance-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+    color: #334155;
+    font-weight: 500;
+}
+
+.performance-label i {
+    font-size: 20px;
+    color: #667eea;
+}
+
+.performance-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+.performance-note {
+    background: #dbeafe;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 20px;
+    color: #1e40af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.expense-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.expense-category {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.expense-category h6 {
+    color: #334155;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+}
+
+.expense-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding: 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.expense-row label {
+    font-weight: 600;
+    color: #475569;
+    min-width: 150px;
+    font-size: 14px;
+}
+
+.input-group {
+    width: 200px;
+}
+
+.input-group-text {
+    background: #e2e8f0;
+    color: #475569;
+    font-weight: 600;
+}
+
+.results-card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    margin: 32px 0;
+    border: 3px solid #3b82f6;
+    box-shadow: 0 12px 40px rgba(59, 130, 246, 0.15);
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.result-row.highlight.final {
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    border-radius: 12px;
+    margin: 24px 0;
+    border: 3px solid #3b82f6;
+    padding: 24px;
+}
+
+.result-value {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: 'Courier New', monospace;
+}
+
+.text-success { color: #10b981 !important; }
+.text-danger { color: #ef4444 !important; }
+
+.expense-breakdown {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.expense-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.analysis-card {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 24px;
+    border: 2px solid #f59e0b;
+}
+
+.example-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    margin-top: 32px;
+    border: 2px solid #10b981;
+}
+
+.example-content { background: #f0fdf4; border-radius: 12px; padding: 24px; }
+.example-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.stat { background: white; border-radius: 8px; padding: 16px; text-align: center; border: 1px solid #a7f3d0; }
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 32px;
+    border-radius: 10px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.btn-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+
+.profit-message {
+    padding: 24px;
+    border-radius: 12px;
+    margin-top: 24px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.profit-positive { background: #d1fae5; color: #065f46; border: 2px solid #10b981; }
+.profit-negative { background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; }
+
+.performance-divider, .result-divider { display: flex; align-items: center; margin: 24px 0; }
+.divider-line { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, #e2e8f0, transparent); }
+.divider-text { padding: 0 16px; font-weight: 700; text-transform: uppercase; color: #475569; }
+
+@media (max-width: 768px) {
+    .expense-row { flex-direction: column; align-items: stretch; gap: 8px; }
+    .input-group { width: 100%; }
+    .btn { width: 100%; justify-content: center; margin-bottom: 10px; margin-left: 0 !important; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Get gross profit from actual sales data
+const grossProfit = {{ profit_data.total_gross_profit if profit_data else 0 }};
+const totalRevenue = {{ profit_data.total_revenue if profit_data else 0 }};
+
+function calculateNetProfit() {
+    // Get all expense inputs
+    const rent = parseFloat(document.getElementById('rent').value) || 0;
+    const ownerSalary = parseFloat(document.getElementById('ownerSalary').value) || 0;
+    const employeeSalaries = parseFloat(document.getElementById('employeeSalaries').value) || 0;
+    const electricity = parseFloat(document.getElementById('electricity').value) || 0;
+    const water = parseFloat(document.getElementById('water').value) || 0;
+    const transport = parseFloat(document.getElementById('transport').value) || 0;
+    const advertising = parseFloat(document.getElementById('advertising').value) || 0;
+    const miscellaneous = parseFloat(document.getElementById('miscellaneous').value) || 0;
+    
+    // Calculate totals
+    const totalSalaries = ownerSalary + employeeSalaries;
+    const totalUtilities = electricity + water;
+    const totalExpenses = rent + totalSalaries + totalUtilities + transport + advertising + miscellaneous;
+    
+    // Calculate net profit
+    const netProfit = grossProfit - totalExpenses;
+    
+    // Update display
+    document.getElementById('resultGrossProfit').textContent = `KES ${grossProfit.toLocaleString('en-KE')}`;
+    document.getElementById('expRent').textContent = `KES ${rent.toLocaleString('en-KE')}`;
+    document.getElementById('expSalaries').textContent = `KES ${totalSalaries.toLocaleString('en-KE')}`;
+    document.getElementById('expUtilities').textContent = `KES ${totalUtilities.toLocaleString('en-KE')}`;
+    document.getElementById('expTransport').textContent = `KES ${transport.toLocaleString('en-KE')}`;
+    document.getElementById('expAdvertising').textContent = `KES ${advertising.toLocaleString('en-KE')}`;
+    document.getElementById('expOther').textContent = `KES ${miscellaneous.toLocaleString('en-KE')}`;
+    document.getElementById('resultTotalExpenses').textContent = `KES ${totalExpenses.toLocaleString('en-KE')}`;
+    document.getElementById('resultNetProfit').textContent = `KES ${netProfit.toLocaleString('en-KE')}`;
+    
+    // Calculate metrics
+    const expenseRatio = totalRevenue > 0 ? (totalExpenses / totalRevenue * 100) : 0;
+    const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
+    
+    document.getElementById('expenseRatio').textContent = `${expenseRatio.toFixed(1)}%`;
+    document.getElementById('netMargin').textContent = `${netMargin.toFixed(1)}%`;
+    
+    // Set profit goal
+    let profitGoal = '--';
+    if (expenseRatio > 50) {
+        profitGoal = 'Reduce expenses to below 40%';
+    } else if (netMargin < 10) {
+        profitGoal = 'Aim for 15% profit margin';
+    } else if (netMargin >= 20) {
+        profitGoal = 'Excellent! Maintain this';
+    } else {
+        profitGoal = 'Good, aim for 20% margin';
+    }
+    document.getElementById('profitGoal').textContent = profitGoal;
+    
+    // Show message
+    const messageDiv = document.getElementById('profitMessage');
+    messageDiv.className = 'profit-message';
+    
+    if (netProfit > 0) {
+        messageDiv.className += ' profit-positive';
+        messageDiv.innerHTML = `
+            <i class="bi bi-emoji-smile"></i>
+            <strong>Great! Your business is profitable!</strong><br>
+            You keep <strong>KES ${netProfit.toLocaleString('en-KE')}</strong> this month.<br>
+            That's <strong>${netMargin.toFixed(1)}%</strong> of your sales as profit.
+        `;
+    } else {
+        messageDiv.className += ' profit-negative';
+        messageDiv.innerHTML = `
+            <i class="bi bi-emoji-frown"></i>
+            <strong>Warning: Your business is losing money!</strong><br>
+            You lost <strong>KES ${Math.abs(netProfit).toLocaleString('en-KE')}</strong> this month.<br>
+            Your expenses (${expenseRatio.toFixed(1)}%) are too high. Reduce costs!
+        `;
+    }
+    
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+
+// HANDLES FORM SUBMISSION TO DATABASE
+function handleFormSubmit(e) {
+    e.preventDefault();
+    const form = document.getElementById('expenseForm');
+    const formData = new FormData(form);
+    const saveBtn = form.querySelector('button[type="submit"]');
+
+    saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+    saveBtn.disabled = true;
+
+    // This sends data to the route in your Python file
+    fetch('{{ url_for("simple_profit_calculator") }}', {
+        method: 'POST',
+        body: new URLSearchParams(formData)
+    })
+    .then(response => {
+        if (response.ok) {
+            alert('Success: Monthly expenses saved to your business records.');
+        } else {
+            alert('Error: Could not save to database. Check your server connection.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Database connection failed.');
+    })
+    .finally(() => {
+        saveBtn.innerHTML = '<i class="bi bi-save"></i> Save Expenses to Database';
+        saveBtn.disabled = false;
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Intercept form submission
+    document.getElementById('expenseForm').addEventListener('submit', handleFormSubmit);
+
+    // Initial calculation if sales exist
+    if (grossProfit > 0) {
+        calculateNetProfit();
+    }
+});
+</script>
+{% endblock %}

@@ -10,7 +10,7 @@
     <div class="kpi-card revenue">
         <div class="kpi-content">
             <div class="kpi-header">
-                <span class="kpi-label">Total Sales</span>
+                <span class="kpi-label">Total Revenue</span>
                 <div class="kpi-icon">
                     <i class="bi bi-cash-stack"></i>
                 </div>
@@ -27,15 +27,33 @@
     <div class="kpi-card profit">
         <div class="kpi-content">
             <div class="kpi-header">
-                <span class="kpi-label">Total Profit</span>
+                <span class="kpi-label">Gross Profit</span>
                 <div class="kpi-icon">
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
             </div>
-            <h3 class="kpi-value">KES {{ "%.0f"|format(summary.total_profit) }}</h3>
+            <h3 class="kpi-value">KES {{ "%.0f"|format(summary.total_gross_profit) }}</h3>
             <div class="kpi-trend">
                 <span class="trend-positive">
-                    <i class="bi bi-arrow-up"></i> Profitable
+                    <i class="bi bi-percent"></i> {{ "%.1f"|format(profit_data.gross_profit_margin) }}% margin
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="kpi-card net-profit">
+        <div class="kpi-content">
+            <div class="kpi-header">
+                <span class="kpi-label">Net Profit</span>
+                <div class="kpi-icon">
+                    <i class="bi bi-currency-exchange"></i>
+                </div>
+            </div>
+            <h3 class="kpi-value">KES {{ "%.0f"|format(profit_data.net_profit) }}</h3>
+            <div class="kpi-trend">
+                <span class="trend-{% if profit_data.net_profit > 0 %}positive{% else %}warning{% endif %}">
+                    <i class="bi bi-{% if profit_data.net_profit > 0 %}arrow-up{% else %}arrow-down{% endif %}"></i> 
+                    {{ "%.1f"|format(profit_data.net_profit_margin) }}% margin
                 </span>
             </div>
         </div>
@@ -55,106 +73,125 @@
             </div>
         </div>
     </div>
+</div>
+
+<!-- Quick Stats Row -->
+<div class="quick-stats-row">
+    <div class="stat-card">
+        <div class="stat-icon sales">
+            <i class="bi bi-cart-check"></i>
+        </div>
+        <div class="stat-info">
+            <h4>{{ summary.total_sales }}</h4>
+            <p>Total Sales</p>
+        </div>
+    </div>
     
-    <div class="kpi-card alert">
-        <div class="kpi-content">
-            <div class="kpi-header">
-                <span class="kpi-label">Low Stock Alerts</span>
-                <div class="kpi-icon">
-                    <i class="bi bi-exclamation-triangle"></i>
-                </div>
-            </div>
-            <h3 class="kpi-value">{{ low_stock|length }}</h3>
-            <div class="kpi-trend">
-                <span class="trend-warning">Need attention</span>
-            </div>
+    <div class="stat-card">
+        <div class="stat-icon expenses">
+            <i class="bi bi-cash-coin"></i>
+        </div>
+        <div class="stat-info">
+            <h4>KES {{ "%.0f"|format(profit_data.total_operating_expenses) }}</h4>
+            <p>Operating Expenses</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon margin">
+            <i class="bi bi-percent"></i>
+        </div>
+        <div class="stat-info">
+            <h4>{{ "%.1f"|format(profit_data.gross_profit_margin) }}%</h4>
+            <p>Gross Margin</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon alert">
+            <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <div class="stat-info">
+            <h4>{{ low_stock|length }}</h4>
+            <p>Low Stock Items</p>
         </div>
     </div>
 </div>
 
-<div class="dashboard-content">
+<!-- Main Content Area -->
+<div class="dashboard-main-content">
     <!-- Recent Sales -->
-    <div class="dashboard-column main-content">
-        <div class="dashboard-card">
-            <div class="card-header">
-                <div class="card-title-section">
-                    <h5 class="card-title">Recent Sales Activity</h5>
-                    <span class="card-subtitle">Latest transactions</span>
-                </div>
-                <a href="{{ url_for('admin_sales') }}" class="card-action">
-                    View All <i class="bi bi-arrow-right"></i>
-                </a>
+    <div class="dashboard-card">
+        <div class="card-header">
+            <div class="card-title-section">
+                <h5 class="card-title">Recent Sales Activity</h5>
+                <span class="card-subtitle">Latest transactions</span>
             </div>
-            <div class="card-body">
-                <div class="data-table">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Product</th>
-                                <th>Quantity</th>
-                                <th>Revenue</th>
-                                <th>Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for sale in recent_sales %}
-                            <tr>
-                                <td>
-                                    <div class="time-cell">
-                                        {% if sale.sale_date %}
-                                            {% if sale.sale_date is string %}
-                                                {{ sale.sale_date.split(' ')[1][:5] if ' ' in sale.sale_date else sale.sale_date[:5] }}
-                                            {% else %}
-                                                {{ sale.sale_date.strftime('%I:%M %p') }}
-                                            {% endif %}
-                                        {% else %}
-                                            N/A
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="product-cell">
-                                        <span class="product-name">{{ sale.product_name }}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="quantity-cell">
-                                        <span class="quantity-value">{{ sale.quantity_sold }}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="revenue-cell">
-                                        <span class="currency">KES</span>
-                                        <span class="amount">{{ "%.2f"|format(sale.total_price) }}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="profit-cell">
-                                        <span class="currency">KES</span>
-                                        <span class="amount">{{ "%.2f"|format(sale.profit) }}</span>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="empty-state">
-                                    <div class="empty-content">
-                                        <i class="bi bi-receipt"></i>
-                                        <p>No recent sales</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <a href="{{ url_for('admin_sales') }}" class="card-action">
+                View All <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="data-table">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Revenue</th>
+                            <th>Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in recent_sales %}
+                        <tr>
+                            <td>
+                                <div class="time-cell">
+                                    {{ sale.display_time if sale.display_time else 'N/A' }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="product-cell">
+                                    <span class="product-name">{{ sale.product_name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="quantity-cell">
+                                    <span class="quantity-value">{{ sale.quantity_sold }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="revenue-cell">
+                                    <span class="currency">KES</span>
+                                    <span class="amount">{{ "%.2f"|format(sale.total_price) }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="profit-cell">
+                                    <span class="currency">KES</span>
+                                    <span class="amount">{{ "%.2f"|format(sale.profit) }}</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <div class="empty-content">
+                                    <i class="bi bi-receipt"></i>
+                                    <p>No recent sales</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-    
-    <!-- Sidebar Content -->
-   
+
+    <!-- Two Column Layout for Other Stats -->
+    <div class="dashboard-two-column">
         <!-- Low Stock Alert -->
         <div class="dashboard-card alert-card">
             <div class="card-header alert-header">
@@ -164,6 +201,9 @@
                     </h5>
                     <span class="card-subtitle">Items to restock</span>
                 </div>
+                <a href="{{ url_for('admin_products') }}" class="card-action">
+                    View All <i class="bi bi-arrow-right"></i>
+                </a>
             </div>
             <div class="card-body">
                 {% if low_stock %}
@@ -194,6 +234,60 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Recent Expenses -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <div class="card-title-section">
+                    <h5 class="card-title">Recent Expenses</h5>
+                    <span class="card-subtitle">Latest operating costs</span>
+                </div>
+                <a href="{{ url_for('admin_expenses') }}" class="card-action">
+                    Manage <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_expenses %}
+                <div class="expense-list">
+                    {% for expense in recent_expenses %}
+                    <div class="expense-item">
+                        <div class="expense-category">
+                            <div class="category-icon">
+                                <i class="bi bi-{{ 'building' if 'rent' in expense.category_name.lower() else 'people' if 'salary' in expense.category_name.lower() else 'lightning' if 'utility' in expense.category_name.lower() else 'coin' }}"></i>
+                            </div>
+                            <div class="category-info">
+                                <h6 class="category-name">{{ expense.category_name }}</h6>
+                                <span class="expense-date">
+                                    {% if expense.expense_date %}
+                                        {{ expense.expense_date.split(' ')[0] if ' ' in expense.expense_date else expense.expense_date }}
+                                    {% else %}
+                                        {{ expense.created_at.split(' ')[0] if ' ' in expense.created_at else expense.created_at }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="expense-amount">
+                            <span class="amount-value">KES {{ "%.2f"|format(expense.amount) }}</span>
+                            {% if expense.description %}
+                            <span class="expense-desc">{{ expense.description|truncate(20) }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-content">
+                        <i class="bi bi-wallet2"></i>
+                        <p>No recent expenses</p>
+                        <a href="{{ url_for('admin_add_expense') }}" class="btn btn-outline-primary btn-sm mt-2">
+                            <i class="bi bi-plus"></i> Add Expense
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -205,17 +299,30 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 24px;
+    margin-bottom: 24px;
+}
+
+.quick-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
     margin-bottom: 32px;
 }
 
-.dashboard-content {
+.dashboard-main-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.dashboard-two-column {
     display: grid;
-    grid-template-columns: 1fr 380px;
+    grid-template-columns: 1fr 1fr;
     gap: 24px;
 }
 
 @media (max-width: 1200px) {
-    .dashboard-content {
+    .dashboard-two-column {
         grid-template-columns: 1fr;
     }
 }
@@ -262,12 +369,12 @@
     --card-color: #10b981;
 }
 
-.kpi-card.inventory {
-    --card-color: #3b82f6;
+.kpi-card.net-profit {
+    --card-color: #8b5cf6;
 }
 
-.kpi-card.alert {
-    --card-color: #f59e0b;
+.kpi-card.inventory {
+    --card-color: #3b82f6;
 }
 
 .kpi-content {
@@ -319,12 +426,12 @@
     color: #10b981;
 }
 
-.kpi-card.inventory .kpi-value {
-    color: #3b82f6;
+.kpi-card.net-profit .kpi-value {
+    color: #8b5cf6;
 }
 
-.kpi-card.alert .kpi-value {
-    color: #f59e0b;
+.kpi-card.inventory .kpi-value {
+    color: #3b82f6;
 }
 
 .kpi-trend {
@@ -342,7 +449,7 @@
 }
 
 .trend-warning {
-    color: #f59e0b;
+    color: #ef4444;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -352,6 +459,66 @@
     color: #64748b;
 }
 
+/* Quick Stats */
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #f1f5f9;
+    transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    border-color: #e0e7ff;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+}
+
+.stat-icon.sales {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+.stat-icon.expenses {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.stat-icon.margin {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.stat-icon.alert {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.stat-info h4 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.stat-info p {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+    font-weight: 500;
+}
+
 /* Dashboard Cards */
 .dashboard-card {
     background: white;
@@ -359,17 +526,13 @@
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     border: 1px solid #f1f5f9;
-    margin-bottom: 24px;
+    margin-bottom: 0;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .dashboard-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.dashboard-card:last-child {
-    margin-bottom: 0;
 }
 
 .card-header {
@@ -527,17 +690,17 @@
     color: #10b981;
 }
 
-/* Product Lists */
-.product-list, .alert-list {
+/* Expense List */
+.expense-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.product-item {
+.expense-item {
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: space-between;
     padding: 16px;
     background: #f8fafc;
     border-radius: 12px;
@@ -545,69 +708,73 @@
     transition: all 0.2s ease;
 }
 
-.product-item:hover {
+.expense-item:hover {
     background: #f1f5f9;
     border-color: #cbd5e1;
 }
 
-.product-rank {
+.expense-category {
     display: flex;
     align-items: center;
-    justify-content: center;
-    min-width: 32px;
-}
-
-.rank-number {
-    width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    color: white;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.product-info {
+    gap: 12px;
     flex: 1;
-    min-width: 0;
 }
 
-.product-name {
+.category-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.category-info {
+    flex: 1;
+}
+
+.category-name {
     font-size: 14px;
     font-weight: 600;
     color: #1e293b;
-    margin-bottom: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-bottom: 2px;
 }
 
-.product-meta {
+.expense-date {
     font-size: 12px;
     color: #64748b;
+}
+
+.expense-amount {
+    text-align: right;
+    min-width: 100px;
+}
+
+.amount-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ef4444;
     display: block;
 }
 
-.product-revenue {
-    min-width: 80px;
-    text-align: right;
-}
-
-.revenue-amount {
-    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 700;
-    white-space: nowrap;
-    display: inline-block;
+.expense-desc {
+    font-size: 12px;
+    color: #64748b;
+    display: block;
+    margin-top: 2px;
+    font-style: italic;
 }
 
 /* Alert List */
+.alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .alert-item {
     display: flex;
     align-items: center;
@@ -726,6 +893,10 @@
         gap: 20px;
     }
     
+    .quick-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
     .kpi-card {
         padding: 24px;
     }
@@ -747,7 +918,11 @@
         gap: 16px;
     }
     
-    .dashboard-content {
+    .quick-stats-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-two-column {
         gap: 16px;
     }
     
@@ -759,13 +934,17 @@
         padding: 16px 12px;
     }
     
-    .product-item, .alert-item {
+    .expense-item, .alert-item {
         flex-direction: column;
         align-items: stretch;
         gap: 12px;
     }
     
-    .product-info, .alert-info {
+    .expense-category, .alert-info {
+        text-align: center;
+    }
+    
+    .expense-amount {
         text-align: center;
     }
     
@@ -787,6 +966,12 @@
         width: 40px;
         height: 40px;
         font-size: 18px;
+    }
+    
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
     }
     
     .card-header {

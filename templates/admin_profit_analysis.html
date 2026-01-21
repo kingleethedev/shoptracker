@@ -1,0 +1,892 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Profit Analysis - Caspian Shop{% endblock %}
+
+{% block page_title %}Profit Analysis{% endblock %}
+{% block page_subtitle %}Gross Profit vs Net Profit Analysis{% endblock %}
+
+{% block admin_content %}
+<!-- Date Filter -->
+<div class="dashboard-card">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin_profit_analysis') }}" class="filter-form">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="startDate" class="form-label">
+                        <i class="bi bi-calendar"></i> Start Date
+                    </label>
+                    <input type="date" 
+                           class="form-control" 
+                           id="startDate" 
+                           name="start_date" 
+                           value="{{ start_date or '' }}">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="endDate" class="form-label">
+                        <i class="bi bi-calendar"></i> End Date
+                    </label>
+                    <input type="date" 
+                           class="form-control" 
+                           id="endDate" 
+                           name="end_date" 
+                           value="{{ end_date or '' }}">
+                </div>
+                
+                <div class="filter-group">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="action-buttons">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i>
+                            <span>Filter</span>
+                        </button>
+                        <a href="{{ url_for('admin_profit_analysis') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i>
+                            <span>Clear</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Profit Summary Cards -->
+<div class="profit-summary-grid">
+    <!-- Total Revenue -->
+    <div class="summary-card revenue">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Total Revenue</span>
+                <div class="summary-icon">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+            <h2 class="summary-value">KES {{ "%.2f"|format(profit_data.total_revenue) }}</h2>
+            <div class="summary-detail">
+                <span>From all sales</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gross Profit -->
+    <div class="summary-card gross-profit">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Gross Profit</span>
+                <div class="summary-icon">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+            </div>
+            <h2 class="summary-value">KES {{ "%.2f"|format(profit_data.total_gross_profit) }}</h2>
+            <div class="summary-detail">
+                <span>
+                    <i class="bi bi-percent"></i> {{ "%.1f"|format(profit_data.gross_profit_margin) }}% margin
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Operating Expenses -->
+    <div class="summary-card expenses">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Operating Expenses</span>
+                <div class="summary-icon">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+            </div>
+            <h2 class="summary-value">KES {{ "%.2f"|format(profit_data.total_operating_expenses) }}</h2>
+            <div class="summary-detail">
+                <span>Rent, salaries, utilities, etc.</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Net Profit -->
+    <div class="summary-card net-profit">
+        <div class="summary-content">
+            <div class="summary-header">
+                <span class="summary-label">Net Profit</span>
+                <div class="summary-icon">
+                    <i class="bi bi-currency-exchange"></i>
+                </div>
+            </div>
+            <h2 class="summary-value">KES {{ "%.2f"|format(profit_data.net_profit) }}</h2>
+            <div class="summary-detail">
+                <span class="{% if profit_data.net_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="bi bi-percent"></i> {{ "%.1f"|format(profit_data.net_profit_margin) }}% margin
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profit Chart -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Profit Comparison</h5>
+        <span class="card-subtitle">Revenue vs Expenses vs Net Profit</span>
+    </div>
+    <div class="card-body">
+        {% if profit_chart %}
+        <div class="chart-container">
+            <img src="data:image/png;base64,{{ profit_chart }}" class="chart-image" alt="Profit Comparison">
+        </div>
+        {% else %}
+        <div class="empty-chart">
+            <i class="bi bi-bar-chart"></i>
+            <p>No profit data available for selected period</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Profit Breakdown -->
+<div class="dashboard-content">
+    <!-- Operating Expenses Breakdown -->
+    <div class="dashboard-column">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="card-title">Operating Expenses Breakdown</h5>
+                <span class="card-subtitle">Detailed operating costs</span>
+            </div>
+            <div class="card-body">
+                {% if operating_expenses %}
+                <div class="expense-list">
+                    {% for expense in operating_expenses %}
+                    <div class="expense-item">
+                        <div class="expense-category">
+                            <div class="category-icon">
+                                <i class="bi bi-{% if 'rent' in expense.category_name.lower() %}building{% elif 'salary' in expense.category_name.lower() %}people{% elif 'utility' in expense.category_name.lower() %}lightning{% else %}coin{% endif %}"></i>
+                            </div>
+                            <div class="category-info">
+                                <h6 class="category-name">{{ expense.category_name }}</h6>
+                                <span class="expense-meta">{{ expense.expense_count }} entries</span>
+                            </div>
+                        </div>
+                        <div class="expense-amount">
+                            <span class="amount-value">KES {{ "%.2f"|format(expense.total_amount) }}</span>
+                            {% if profit_data.total_operating_expenses > 0 %}
+                            <span class="expense-percentage">
+                                {{ "%.1f"|format((expense.total_amount / profit_data.total_operating_expenses) * 100) }}%
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-content">
+                        <i class="bi bi-wallet2"></i>
+                        <p>No operating expenses recorded</p>
+                        <a href="{{ url_for('admin_add_expense') }}" class="btn btn-outline-primary btn-sm mt-2">
+                            <i class="bi bi-plus"></i> Add Expense
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- COGS Expenses Breakdown -->
+    <div class="dashboard-column">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="card-title">Cost of Goods Sold</h5>
+                <span class="card-subtitle">Direct product costs</span>
+            </div>
+            <div class="card-body">
+                {% if cogs_expenses %}
+                <div class="expense-list">
+                    {% for expense in cogs_expenses %}
+                    <div class="expense-item">
+                        <div class="expense-category">
+                            <div class="category-icon">
+                                <i class="bi bi-box-seam"></i>
+                            </div>
+                            <div class="category-info">
+                                <h6 class="category-name">{{ expense.category_name }}</h6>
+                                <span class="expense-meta">{{ expense.expense_count }} entries</span>
+                            </div>
+                        </div>
+                        <div class="expense-amount">
+                            <span class="amount-value">KES {{ "%.2f"|format(expense.total_amount) }}</span>
+                            {% if profit_data.total_cogs > 0 %}
+                            <span class="expense-percentage">
+                                {{ "%.1f"|format((expense.total_amount / profit_data.total_cogs) * 100) }}%
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-content">
+                        <i class="bi bi-box"></i>
+                        <p>No COGS expenses recorded</p>
+                        <a href="{{ url_for('admin_add_expense') }}" class="btn btn-outline-primary btn-sm mt-2">
+                            <i class="bi bi-plus"></i> Add Expense
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Expense Breakdown Chart -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h5 class="card-title">Expense Breakdown</h5>
+            </div>
+            <div class="card-body">
+                {% if expense_chart %}
+                <div class="chart-container">
+                    <img src="data:image/png;base64,{{ expense_chart }}" class="chart-image" alt="Expense Breakdown">
+                </div>
+                {% else %}
+                <div class="empty-chart">
+                    <i class="bi bi-pie-chart"></i>
+                    <p>No expense data</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profitability Metrics -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Profitability Metrics</h5>
+    </div>
+    <div class="card-body">
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <div class="metric-info">
+                    <h4 class="metric-value">{{ "%.1f"|format(profit_data.gross_profit_margin) }}%</h4>
+                    <span class="metric-label">Gross Profit Margin</span>
+                    <p class="metric-description">
+                        (Gross Profit ÷ Revenue) × 100
+                    </p>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <div class="metric-info">
+                    <h4 class="metric-value">{{ "%.1f"|format(profit_data.net_profit_margin) }}%</h4>
+                    <span class="metric-label">Net Profit Margin</span>
+                    <p class="metric-description">
+                        (Net Profit ÷ Revenue) × 100
+                    </p>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                <div class="metric-info">
+                    <h4 class="metric-value">{{ "%.1f"|format((profit_data.total_operating_expenses / profit_data.total_revenue * 100) if profit_data.total_revenue > 0 else 0) }}%</h4>
+                    <span class="metric-label">Expense Ratio</span>
+                    <p class="metric-description">
+                        (Expenses ÷ Revenue) × 100
+                    </p>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <div class="metric-info">
+                    {% set profit_margin_ratio = profit_data.net_profit_margin / profit_data.gross_profit_margin if profit_data.gross_profit_margin > 0 else 0 %}
+                    <h4 class="metric-value">{{ "%.1f"|format(profit_margin_ratio * 100) }}%</h4>
+                    <span class="metric-label">Efficiency Ratio</span>
+                    <p class="metric-description">
+                        (Net Margin ÷ Gross Margin) × 100
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Insights -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Key Insights</h5>
+        <span class="card-subtitle">Based on current data</span>
+    </div>
+    <div class="card-body">
+        <div class="insights-grid">
+            {% if profit_data.net_profit > 0 %}
+            <div class="insight-card positive">
+                <div class="insight-icon">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Business is Profitable</h6>
+                    <p>
+                        Your business is generating a net profit of 
+                        <strong>KES {{ "%.2f"|format(profit_data.net_profit) }}</strong> 
+                        after all expenses.
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <div class="insight-card negative">
+                <div class="insight-icon">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Business is Not Profitable</h6>
+                    <p>
+                        Your business is currently operating at a loss of 
+                        <strong>KES {{ "%.2f"|format(-profit_data.net_profit) }}</strong>. 
+                        Consider reducing expenses or increasing revenue.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if profit_data.gross_profit_margin > 30 %}
+            <div class="insight-card positive">
+                <div class="insight-icon">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Strong Gross Margin</h6>
+                    <p>
+                        Your gross profit margin of {{ "%.1f"|format(profit_data.gross_profit_margin) }}% 
+                        is excellent. Focus on controlling operating expenses.
+                    </p>
+                </div>
+            </div>
+            {% elif profit_data.gross_profit_margin > 20 %}
+            <div class="insight-card neutral">
+                <div class="insight-icon">
+                    <i class="bi bi-dash-circle"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Good Gross Margin</h6>
+                    <p>
+                        Your gross profit margin of {{ "%.1f"|format(profit_data.gross_profit_margin) }}% 
+                        is good. Consider optimizing product pricing.
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <div class="insight-card negative">
+                <div class="insight-icon">
+                    <i class="bi bi-arrow-down-circle"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Low Gross Margin</h6>
+                    <p>
+                        Your gross profit margin of {{ "%.1f"|format(profit_data.gross_profit_margin) }}% 
+                        is low. Consider increasing prices or reducing product costs.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% set expense_ratio = (profit_data.total_operating_expenses / profit_data.total_revenue * 100) if profit_data.total_revenue > 0 else 0 %}
+            {% if expense_ratio > 50 %}
+            <div class="insight-card negative">
+                <div class="insight-icon">
+                    <i class="bi bi-cash-coin"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>High Expense Ratio</h6>
+                    <p>
+                        Your expense ratio of {{ "%.1f"|format(expense_ratio) }}% is high. 
+                        Focus on reducing operating costs to improve profitability.
+                    </p>
+                </div>
+            </div>
+            {% elif expense_ratio > 30 %}
+            <div class="insight-card neutral">
+                <div class="insight-icon">
+                    <i class="bi bi-cash"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Moderate Expense Ratio</h6>
+                    <p>
+                        Your expense ratio of {{ "%.1f"|format(expense_ratio) }}% is moderate. 
+                        Look for opportunities to optimize expenses.
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <div class="insight-card positive">
+                <div class="insight-icon">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div class="insight-content">
+                    <h6>Low Expense Ratio</h6>
+                    <p>
+                        Your expense ratio of {{ "%.1f"|format(expense_ratio) }}% is excellent. 
+                        Your business is efficiently managed.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Profit Summary Grid */
+.profit-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.summary-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f5f9;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.summary-card.revenue::before {
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
+
+.summary-card.gross-profit::before {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.summary-card.expenses::before {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.summary-card.net-profit::before {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+.summary-content {
+    position: relative;
+    z-index: 1;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.summary-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.summary-card.revenue .summary-icon {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.summary-card.gross-profit .summary-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.summary-card.expenses .summary-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.summary-card.net-profit .summary-icon {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.summary-value {
+    font-size: 36px;
+    font-weight: 800;
+    margin: 24px 0;
+    line-height: 1.2;
+}
+
+.summary-card.revenue .summary-value {
+    color: #6366f1;
+}
+
+.summary-card.gross-profit .summary-value {
+    color: #10b981;
+}
+
+.summary-card.expenses .summary-value {
+    color: #f59e0b;
+}
+
+.summary-card.net-profit .summary-value {
+    color: #8b5cf6;
+}
+
+.summary-detail {
+    font-size: 14px;
+    font-weight: 500;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+    color: #64748b;
+}
+
+.text-success {
+    color: #10b981;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+/* Dashboard Layout */
+.dashboard-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+    .dashboard-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Expense List */
+.expense-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.expense-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.expense-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.expense-category {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.category-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.category-info {
+    flex: 1;
+}
+
+.category-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.expense-meta {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.expense-amount {
+    text-align: right;
+    min-width: 120px;
+}
+
+.amount-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    display: block;
+}
+
+.expense-percentage {
+    font-size: 12px;
+    color: #64748b;
+    display: block;
+    margin-top: 2px;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.metric-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.metric-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.metric-info {
+    flex: 1;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.metric-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.metric-description {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Insights Grid */
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.insight-card {
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.insight-card.positive {
+    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    border: 1px solid #a7f3d0;
+}
+
+.insight-card.neutral {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #fde68a;
+}
+
+.insight-card.negative {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 1px solid #fecaca;
+}
+
+.insight-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.insight-card.positive .insight-icon {
+    background: #10b981;
+    color: white;
+}
+
+.insight-card.neutral .insight-icon {
+    background: #f59e0b;
+    color: white;
+}
+
+.insight-card.negative .insight-icon {
+    background: #ef4444;
+    color: white;
+}
+
+.insight-content {
+    flex: 1;
+}
+
+.insight-content h6 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+}
+
+.insight-content p {
+    font-size: 14px;
+    color: #475569;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.insight-content strong {
+    color: #1e293b;
+}
+
+/* Chart Container */
+.chart-container {
+    height: 300px;
+    width: 100%;
+    position: relative;
+}
+
+.chart-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.empty-chart {
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: #94a3b8;
+}
+
+.empty-chart i {
+    font-size: 48px;
+    opacity: 0.5;
+}
+
+.empty-chart p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Empty States */
+.empty-state {
+    padding: 48px 24px;
+    text-align: center;
+}
+
+.empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.empty-content i {
+    font-size: 48px;
+    color: #cbd5e1;
+}
+
+.empty-content p {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profit-summary-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metric-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .insight-card {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+{% endblock %}

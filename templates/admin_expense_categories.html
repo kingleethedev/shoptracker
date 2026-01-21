@@ -1,0 +1,590 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Expense Categories - Caspian Shop{% endblock %}
+
+{% block page_title %}Expense Categories{% endblock %}
+{% block page_subtitle %}Manage expense categories and types{% endblock %}
+
+{% block admin_content %}
+<!-- Header with Add Button -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <div class="card-title-section">
+            <h5 class="card-title">Expense Categories</h5>
+            <span class="card-subtitle">Organize your expenses by category and type</span>
+        </div>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+            <i class="bi bi-plus-circle"></i>
+            <span>Add Category</span>
+        </button>
+    </div>
+    <div class="card-body">
+        <!-- Categories Grid -->
+        <div class="categories-grid">
+            {% for category in categories %}
+            <div class="category-card {{ category.category_type }}">
+                <div class="category-header">
+                    <div class="category-icon">
+                        <i class="bi bi-{% if 'rent' in category.name.lower() %}building{% elif 'salary' in category.name.lower() %}people{% elif 'utility' in category.name.lower() %}lightning{% elif 'cogs' in category.category_type %}box-seam{% else %}tag{% endif %}"></i>
+                    </div>
+                    <div class="category-info">
+                        <h6 class="category-name">{{ category.name }}</h6>
+                        <span class="category-type">{{ category.category_type|upper }}</span>
+                    </div>
+                </div>
+                <div class="category-actions">
+                    <span class="category-id">ID: {{ category.id }}</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-categories">
+                <div class="empty-content">
+                    <i class="bi bi-tags"></i>
+                    <p>No categories found</p>
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                        <i class="bi bi-plus"></i> Create First Category
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Category Types Info -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Understanding Category Types</h5>
+    </div>
+    <div class="card-body">
+        <div class="category-types-info">
+            <div class="type-info operating">
+                <div class="type-icon">
+                    <i class="bi bi-building"></i>
+                </div>
+                <div class="type-content">
+                    <h6>Operating Expenses</h6>
+                    <p>
+                        Day-to-day business costs not directly tied to production.
+                        Examples: Rent, salaries, utilities, marketing, office supplies, insurance, maintenance.
+                        These reduce your <strong>Net Profit</strong>.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="type-info cogs">
+                <div class="type-icon">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div class="type-content">
+                    <h6>COGS (Cost of Goods Sold)</h6>
+                    <p>
+                        Direct costs of producing goods or services sold.
+                        Examples: Raw materials, manufacturing costs, packaging, direct labor.
+                        These reduce your <strong>Gross Profit</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profit-explanation">
+            <h6>How This Affects Profit Calculation:</h6>
+            <div class="calculation-steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <strong>Revenue</strong> - <strong>COGS</strong> = <strong>Gross Profit</strong>
+                    </div>
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <strong>Gross Profit</strong> - <strong>Operating Expenses</strong> = <strong>Net Profit</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Default Categories -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h5 class="card-title">Default Categories</h5>
+        <span class="card-subtitle">Pre-defined categories for common expenses</span>
+    </div>
+    <div class="card-body">
+        <div class="default-categories">
+            <div class="default-category">
+                <h6>Operating Expense Categories:</h6>
+                <div class="category-tags">
+                    <span class="tag">Rent</span>
+                    <span class="tag">Salaries</span>
+                    <span class="tag">Utilities</span>
+                    <span class="tag">Marketing</span>
+                    <span class="tag">Office Supplies</span>
+                    <span class="tag">Insurance</span>
+                    <span class="tag">Maintenance</span>
+                    <span class="tag">Professional Fees</span>
+                </div>
+            </div>
+            
+            <div class="default-category">
+                <h6>COGS Categories:</h6>
+                <div class="category-tags">
+                    <span class="tag cogs">Raw Materials</span>
+                    <span class="tag cogs">Manufacturing</span>
+                    <span class="tag cogs">Packaging</span>
+                    <span class="tag cogs">Direct Labor</span>
+                    <span class="tag cogs">Freight</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCategoryModalLabel">Add New Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_add_expense_category') }}">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="categoryName" class="form-label">Category Name</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="categoryName" 
+                               name="name" 
+                               placeholder="e.g., Rent, Salaries, Marketing" 
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="categoryType" class="form-label">Category Type</label>
+                        <select class="form-control" id="categoryType" name="type" required>
+                            <option value="">Select type</option>
+                            <option value="operating">Operating Expense</option>
+                            <option value="cogs">COGS (Cost of Goods Sold)</option>
+                        </select>
+                        <div class="form-text">
+                            <strong>Operating</strong>: Reduces Net Profit<br>
+                            <strong>COGS</strong>: Reduces Gross Profit
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Categories Grid */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.category-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 2px solid;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.category-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.category-card.operating {
+    border-color: #fbbf24;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.category-card.cogs {
+    border-color: #60a5fa;
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.category-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.category-card.operating .category-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.category-card.cogs .category-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.category-info {
+    flex: 1;
+}
+
+.category-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.category-type {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.category-card.operating .category-type {
+    background: #f59e0b;
+    color: white;
+}
+
+.category-card.cogs .category-type {
+    background: #3b82f6;
+    color: white;
+}
+
+.category-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.category-id {
+    font-size: 12px;
+    color: #64748b;
+    font-family: 'Courier New', monospace;
+}
+
+.empty-categories {
+    grid-column: 1 / -1;
+    padding: 48px 24px;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 2px dashed #cbd5e1;
+}
+
+.empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.empty-content i {
+    font-size: 48px;
+    color: #cbd5e1;
+}
+
+.empty-content p {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Category Types Info */
+.category-types-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+@media (max-width: 768px) {
+    .category-types-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+.type-info {
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.type-info.operating {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #fbbf24;
+}
+
+.type-info.cogs {
+    background: linear-gradient(135deg, #dbeafe 0%, #93c5fd 100%);
+    border: 1px solid #60a5fa;
+}
+
+.type-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.type-info.operating .type-icon {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.type-info.cogs .type-icon {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+.type-content h6 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+}
+
+.type-content p {
+    font-size: 14px;
+    color: #475569;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.type-content strong {
+    color: #1e293b;
+}
+
+/* Profit Explanation */
+.profit-explanation {
+    padding: 24px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.profit-explanation h6 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 16px 0;
+}
+
+.calculation-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.step-content {
+    font-size: 16px;
+    color: #334155;
+}
+
+.step-content strong {
+    color: #1e293b;
+}
+
+/* Default Categories */
+.default-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.default-category h6 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 12px 0;
+}
+
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    padding: 6px 12px;
+    background: #e2e8f0;
+    border-radius: 16px;
+    font-size: 13px;
+    color: #475569;
+    font-weight: 500;
+}
+
+.tag.cogs {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Modal Styles */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    padding: 20px 24px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-text {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    border: 2px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: transparent;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: white;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.btn-outline-primary {
+    background: white;
+    color: #667eea;
+    border-color: #667eea;
+    padding: 6px 12px;
+}
+
+.btn-outline-primary:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+</style>
+{% endblock %}

@@ -64,6 +64,30 @@ class Database:
             )
         ''')
         
+        # ============ NEW TABLES FOR EXPENSES ============
+        # Expense Categories table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS expense_categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                category_type TEXT NOT NULL CHECK(category_type IN ('operating', 'cogs')),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Expenses table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS expenses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                description TEXT,
+                expense_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (category_id) REFERENCES expense_categories (id)
+            )
+        ''')
+        
         # Create default users
         try:
             cursor = conn.cursor()
@@ -83,13 +107,35 @@ class Database:
                     ('employee', 'employee123', 'employee')
                 )
                 print("✓ Employee user created: employee / employee123")
+            
+            # Create default expense categories
+            default_categories = [
+                ('Cost of Goods Sold', 'cogs'),
+                ('Rent', 'operating'),
+                ('Salaries', 'operating'),
+                ('Utilities', 'operating'),
+                ('Marketing', 'operating'),
+                ('Office Supplies', 'operating'),
+                ('Insurance', 'operating'),
+                ('Maintenance', 'operating'),
+                ('Other Operating Expenses', 'operating')
+            ]
+            
+            for name, cat_type in default_categories:
+                cursor.execute('''
+                    INSERT OR IGNORE INTO expense_categories (name, category_type) 
+                    VALUES (?, ?)
+                ''', (name, cat_type))
+            
             conn.commit()
+            print("✓ Expense categories initialized")
         except sqlite3.Error as e:
             print(f"Database init error: {e}")
         finally:
             conn.close()
     
     # ============ USER METHODS ============
+    # (No changes to existing user methods)
     def authenticate_user(self, username, password):
         conn = self.get_connection()
         try:
@@ -145,7 +191,6 @@ class Database:
     def add_user(self, username, password, role):
         conn = self.get_connection()
         try:
-            # Check if username exists
             existing = conn.execute(
                 'SELECT id FROM users WHERE username = ?', (username,)
             ).fetchone()
@@ -168,7 +213,6 @@ class Database:
     def delete_user(self, user_id):
         conn = self.get_connection()
         try:
-            # Don't allow deleting the last admin
             user = conn.execute('SELECT role FROM users WHERE id = ?', (user_id,)).fetchone()
             if user and user['role'] == 'admin':
                 admins = conn.execute('SELECT COUNT(*) as count FROM users WHERE role = "admin"').fetchone()
@@ -204,6 +248,7 @@ class Database:
             pass
     
     # ============ PRODUCT METHODS ============
+    # (No changes to existing product methods)
     def get_all_products(self):
         conn = self.get_connection()
         try:
@@ -291,6 +336,7 @@ class Database:
             pass
     
     # ============ SALES METHODS ============
+    # (No changes to existing sales methods)
     def record_sale(self, product_id, quantity_sold, total_price, profit):
         conn = self.get_connection()
         try:
@@ -335,10 +381,10 @@ class Database:
                 SELECT 
                     COUNT(*) as total_sales,
                     COALESCE(SUM(total_price), 0) as total_revenue,
-                    COALESCE(SUM(profit), 0) as total_profit
+                    COALESCE(SUM(profit), 0) as total_gross_profit
                 FROM sales
             ''').fetchone()
-            return dict(summary) if summary else {'total_sales': 0, 'total_revenue': 0, 'total_profit': 0}
+            return dict(summary) if summary else {'total_sales': 0, 'total_revenue': 0, 'total_gross_profit': 0}
         finally:
             pass
     
@@ -398,7 +444,7 @@ class Database:
             trend = conn.execute('''
                 SELECT 
                     DATE(sale_date) as date,
-                    COALESCE(SUM(profit), 0) as daily_profit,
+                    COALESCE(SUM(profit), 0) as daily_gross_profit,
                     COALESCE(SUM(total_price), 0) as daily_revenue
                 FROM sales
                 WHERE sale_date >= DATE('now', ?)
@@ -406,6 +452,242 @@ class Database:
                 ORDER BY date
             ''', (f'-{days} days',)).fetchall()
             return [dict(row) for row in trend]
+        finally:
+            pass
+    
+    # ============ NEW EXPENSE METHODS ============
+    
+    def add_expense_category(self, name, category_type):
+        """Add a new expense category"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO expense_categories (name, category_type) VALUES (?, ?)',
+                (name, category_type)
+            )
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise e
+        finally:
+            pass
+    
+    def get_all_expense_categories(self):
+        """Get all expense categories"""
+        conn = self.get_connection()
+        try:
+            categories = conn.execute(
+                'SELECT * FROM expense_categories ORDER BY category_type, name'
+            ).fetchall()
+            return [dict(cat) for cat in categories]
+        finally:
+            pass
+    
+    def get_expense_categories_by_type(self, category_type):
+        """Get expense categories by type ('operating' or 'cogs')"""
+        conn = self.get_connection()
+        try:
+            categories = conn.execute(
+                'SELECT * FROM expense_categories WHERE category_type = ? ORDER BY name',
+                (category_type,)
+            ).fetchall()
+            return [dict(cat) for cat in categories]
+        finally:
+            pass
+    
+    def add_expense(self, category_id, amount, description=None):
+        """Record a new expense"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''INSERT INTO expenses (category_id, amount, description, expense_date) 
+                   VALUES (?, ?, ?, ?)''',
+                (category_id, amount, description, datetime.now())
+            )
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise e
+        finally:
+            pass
+    
+    def get_all_expenses(self, start_date=None, end_date=None):
+        """Get all expenses with optional date range"""
+        conn = self.get_connection()
+        try:
+            query = '''
+                SELECT e.*, ec.name as category_name, ec.category_type
+                FROM expenses e
+                JOIN expense_categories ec ON e.category_id = ec.id
+            '''
+            params = []
+            
+            if start_date and end_date:
+                query += ' WHERE DATE(e.expense_date) BETWEEN ? AND ?'
+                params.extend([start_date, end_date])
+            elif start_date:
+                query += ' WHERE DATE(e.expense_date) >= ?'
+                params.append(start_date)
+            elif end_date:
+                query += ' WHERE DATE(e.expense_date) <= ?'
+                params.append(end_date)
+            
+            query += ' ORDER BY e.expense_date DESC'
+            expenses = conn.execute(query, params).fetchall()
+            return [dict(exp) for exp in expenses]
+        finally:
+            pass
+    
+    def get_expense_summary(self, start_date=None, end_date=None):
+        """Get expense summary by category type"""
+        conn = self.get_connection()
+        try:
+            query = '''
+                SELECT 
+                    ec.category_type,
+                    COALESCE(SUM(e.amount), 0) as total_amount
+                FROM expense_categories ec
+                LEFT JOIN expenses e ON ec.id = e.category_id
+            '''
+            params = []
+            
+            if start_date and end_date:
+                query += ' WHERE DATE(e.expense_date) BETWEEN ? AND ?'
+                params.extend([start_date, end_date])
+            elif start_date:
+                query += ' WHERE DATE(e.expense_date) >= ?'
+                params.append(start_date)
+            elif end_date:
+                query += ' WHERE DATE(e.expense_date) <= ?'
+                params.append(end_date)
+            
+            query += ' GROUP BY ec.category_type'
+            summary = conn.execute(query, params).fetchall()
+            return {row['category_type']: row['total_amount'] for row in summary}
+        finally:
+            pass
+    
+    def get_expenses_by_category(self, start_date=None, end_date=None):
+        """Get expenses grouped by category"""
+        conn = self.get_connection()
+        try:
+            query = '''
+                SELECT 
+                    ec.id,
+                    ec.name as category_name,
+                    ec.category_type,
+                    COALESCE(SUM(e.amount), 0) as total_amount,
+                    COUNT(e.id) as expense_count
+                FROM expense_categories ec
+                LEFT JOIN expenses e ON ec.id = e.category_id
+            '''
+            params = []
+            
+            if start_date and end_date:
+                query += ' WHERE DATE(e.expense_date) BETWEEN ? AND ?'
+                params.extend([start_date, end_date])
+            elif start_date:
+                query += ' WHERE DATE(e.expense_date) >= ?'
+                params.append(start_date)
+            elif end_date:
+                query += ' WHERE DATE(e.expense_date) <= ?'
+                params.append(end_date)
+            
+            query += ' GROUP BY ec.id, ec.name ORDER BY total_amount DESC'
+            expenses = conn.execute(query, params).fetchall()
+            return [dict(exp) for exp in expenses]
+        finally:
+            pass
+    
+    def get_total_expenses(self, start_date=None, end_date=None):
+        """Get total expenses"""
+        conn = self.get_connection()
+        try:
+            query = 'SELECT COALESCE(SUM(amount), 0) as total FROM expenses'
+            params = []
+            
+            if start_date and end_date:
+                query += ' WHERE DATE(expense_date) BETWEEN ? AND ?'
+                params.extend([start_date, end_date])
+            elif start_date:
+                query += ' WHERE DATE(expense_date) >= ?'
+                params.append(start_date)
+            elif end_date:
+                query += ' WHERE DATE(expense_date) <= ?'
+                params.append(end_date)
+            
+            result = conn.execute(query, params).fetchone()
+            return result['total'] if result else 0
+        finally:
+            pass
+    
+    def delete_expense(self, expense_id):
+        """Delete an expense"""
+        conn = self.get_connection()
+        try:
+            conn.execute('DELETE FROM expenses WHERE id = ?', (expense_id,))
+            conn.commit()
+            return True
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise e
+        finally:
+            pass
+    
+    def get_profit_analysis(self, start_date=None, end_date=None):
+        """Get complete profit analysis (Gross Profit and Net Profit)"""
+        conn = self.get_connection()
+        try:
+            # Get revenue and gross profit from sales
+            sales_query = '''
+                SELECT 
+                    COALESCE(SUM(total_price), 0) as total_revenue,
+                    COALESCE(SUM(profit), 0) as total_gross_profit
+                FROM sales
+            '''
+            sales_params = []
+            
+            if start_date and end_date:
+                sales_query += ' WHERE DATE(sale_date) BETWEEN ? AND ?'
+                sales_params.extend([start_date, end_date])
+            elif start_date:
+                sales_query += ' WHERE DATE(sale_date) >= ?'
+                sales_params.append(start_date)
+            elif end_date:
+                sales_query += ' WHERE DATE(sale_date) <= ?'
+                sales_params.append(end_date)
+            
+            sales_result = conn.execute(sales_query, sales_params).fetchone()
+            
+            # Get expenses
+            expense_summary = self.get_expense_summary(start_date, end_date)
+            
+            total_revenue = sales_result['total_revenue'] if sales_result else 0
+            total_gross_profit = sales_result['total_gross_profit'] if sales_result else 0
+            
+            total_cogs = expense_summary.get('cogs', 0)
+            total_operating_expenses = expense_summary.get('operating', 0)
+            total_expenses = total_cogs + total_operating_expenses
+            
+            # Calculate net profit
+            # Gross Profit = Revenue - COGS (from sales profit calculation)
+            # Net Profit = Gross Profit - Operating Expenses
+            net_profit = total_gross_profit - total_operating_expenses
+            
+            return {
+                'total_revenue': total_revenue,
+                'total_gross_profit': total_gross_profit,
+                'total_cogs': total_cogs,
+                'total_operating_expenses': total_operating_expenses,
+                'total_expenses': total_expenses,
+                'net_profit': net_profit,
+                'gross_profit_margin': (total_gross_profit / total_revenue * 100) if total_revenue > 0 else 0,
+                'net_profit_margin': (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+            }
         finally:
             pass
     

@@ -233,7 +233,181 @@ def sell_product():
         flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('employee_dashboard'))
 
-# -------- ADMIN ROUTES --------
+# ============ NEW EXPENSE MANAGEMENT ROUTES ============
+
+@app.route('/admin/expenses')
+@login_required
+def admin_expenses():
+    """Manage expenses"""
+    if not current_user.is_admin:
+        return redirect(url_for('employee_dashboard'))
+    
+    try:
+        # Get all expenses
+        expenses = db.get_all_expenses()
+        categories = db.get_all_expense_categories()
+        
+        # Get date range for filtering
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if start_date or end_date:
+            expenses = db.get_all_expenses(start_date, end_date)
+        
+        return render_template('admin_expenses.html',
+                             expenses=expenses,
+                             categories=categories,
+                             start_date=start_date,
+                             end_date=end_date)
+    except Exception as e:
+        flash(f'Error loading expenses: {str(e)}', 'error')
+        return render_template('admin_expenses.html',
+                             expenses=[],
+                             categories=[])
+
+@app.route('/admin/expenses/add', methods=['GET', 'POST'])
+@login_required
+def admin_add_expense():
+    """Add a new expense"""
+    if not current_user.is_admin:
+        return redirect(url_for('employee_dashboard'))
+    
+    if request.method == 'POST':
+        try:
+            category_id = request.form.get('category_id')
+            amount_str = request.form.get('amount', '0')
+            description = request.form.get('description', '').strip()
+            
+            # Validate
+            if not category_id:
+                flash('Please select a category', 'error')
+                return redirect(url_for('admin_add_expense'))
+            
+            try:
+                amount = float(amount_str)
+            except ValueError:
+                flash('Invalid amount', 'error')
+                return redirect(url_for('admin_add_expense'))
+            
+            if amount <= 0:
+                flash('Amount must be greater than 0', 'error')
+                return redirect(url_for('admin_add_expense'))
+            
+            # Add expense
+            db.add_expense(category_id, amount, description)
+            flash('Expense added successfully!', 'success')
+            return redirect(url_for('admin_expenses'))
+            
+        except Exception as e:
+            flash(f'Error adding expense: {str(e)}', 'error')
+            return redirect(url_for('admin_add_expense'))
+    
+    # GET request - show form
+    categories = db.get_all_expense_categories()
+    return render_template('admin_add_expense.html', categories=categories)
+
+@app.route('/admin/expenses/delete/<int:expense_id>', methods=['POST'])
+@login_required
+def admin_delete_expense(expense_id):
+    """Delete an expense"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        db.delete_expense(expense_id)
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/admin/expense-categories')
+@login_required
+def admin_expense_categories():
+    """Manage expense categories"""
+    if not current_user.is_admin:
+        return redirect(url_for('employee_dashboard'))
+    
+    try:
+        categories = db.get_all_expense_categories()
+        return render_template('admin_expense_categories.html', categories=categories)
+    except Exception as e:
+        flash(f'Error loading categories: {str(e)}', 'error')
+        return render_template('admin_expense_categories.html', categories=[])
+
+@app.route('/admin/expense-categories/add', methods=['POST'])
+@login_required
+def admin_add_expense_category():
+    """Add a new expense category"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        name = request.form.get('name', '').strip()
+        category_type = request.form.get('type', 'operating')
+        
+        if not name:
+            flash('Category name is required', 'error')
+            return redirect(url_for('admin_expense_categories'))
+        
+        if category_type not in ['operating', 'cogs']:
+            category_type = 'operating'
+        
+        db.add_expense_category(name, category_type)
+        flash(f'Category "{name}" added successfully!', 'success')
+        return redirect(url_for('admin_expense_categories'))
+        
+    except Exception as e:
+        flash(f'Error adding category: {str(e)}', 'error')
+        return redirect(url_for('admin_expense_categories'))
+
+# ============ PROFIT ANALYSIS ROUTES ============
+
+@app.route('/admin/profit-analysis')
+@login_required
+def admin_profit_analysis():
+    """Profit analysis page showing gross and net profit"""
+    if not current_user.is_admin:
+        return redirect(url_for('employee_dashboard'))
+    
+    try:
+        # Get date range
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # Get profit analysis
+        profit_data = db.get_profit_analysis(start_date, end_date)
+        
+        # Get expenses by category
+        expenses_by_category = db.get_expenses_by_category(start_date, end_date)
+        
+        # Get operating and COGS expenses separately
+        operating_expenses = [e for e in expenses_by_category if e['category_type'] == 'operating']
+        cogs_expenses = [e for e in expenses_by_category if e['category_type'] == 'cogs']
+        
+        # Generate profit chart
+        profit_chart = generate_profit_chart(profit_data)
+        
+        # Generate expense chart
+        expense_chart = generate_expense_chart(expenses_by_category)
+        
+        return render_template('admin_profit_analysis.html',
+                             profit_data=profit_data,
+                             operating_expenses=operating_expenses,
+                             cogs_expenses=cogs_expenses,
+                             start_date=start_date,
+                             end_date=end_date,
+                             profit_chart=profit_chart,
+                             expense_chart=expense_chart)
+        
+    except Exception as e:
+        flash(f'Error loading profit analysis: {str(e)}', 'error')
+        return render_template('admin_profit_analysis.html',
+                             profit_data={},
+                             operating_expenses=[],
+                             cogs_expenses=[])
+
+# ============ UPDATED ADMIN DASHBOARD ============
+
 @app.route('/admin/dashboard')
 @login_required
 def admin_dashboard():
@@ -242,10 +416,14 @@ def admin_dashboard():
     
     try:
         # Get dashboard data
-        summary = db.get_sales_summary() or {'total_sales': 0, 'total_revenue': 0, 'total_profit': 0}
+        summary = db.get_sales_summary() or {'total_sales': 0, 'total_revenue': 0, 'total_gross_profit': 0}
         low_stock = db.get_low_stock_products(threshold=10)
         best_selling = db.get_best_selling_products(limit=5)
         recent_sales_data = db.get_all_sales()[:10]
+        
+        # Get profit analysis for today
+        today = date.today().isoformat()
+        profit_data = db.get_profit_analysis(today, today)
         
         # Format sales
         formatted_sales = []
@@ -259,20 +437,27 @@ def admin_dashboard():
         total_products = len(products)
         total_items = sum(p.get('quantity', 0) for p in products)
         
+        # Get recent expenses
+        recent_expenses = db.get_all_expenses()[:5]
+        
         return render_template('admin_dashboard.html',
                              summary=summary,
+                             profit_data=profit_data,
                              low_stock=low_stock,
                              best_selling=best_selling,
                              recent_sales=formatted_sales,
+                             recent_expenses=recent_expenses,
                              total_products=total_products,
                              total_items=total_items)
     except Exception as e:
         flash(f'Error loading dashboard: {str(e)}', 'error')
         return render_template('admin_dashboard.html',
-                             summary={'total_sales': 0, 'total_revenue': 0, 'total_profit': 0},
+                             summary={'total_sales': 0, 'total_revenue': 0, 'total_gross_profit': 0},
+                             profit_data={},
                              low_stock=[],
                              best_selling=[],
                              recent_sales=[],
+                             recent_expenses=[],
                              total_products=0,
                              total_items=0)
 
@@ -532,17 +717,22 @@ def admin_reports():
         
         # Calculate metrics
         total_revenue = sum(p.get('total_revenue', 0) for p in profit_per_product)
-        total_profit = sum(p.get('total_profit', 0) for p in profit_per_product)
+        total_gross_profit = sum(p.get('total_profit', 0) for p in profit_per_product)
         total_items = sum(p.get('total_quantity', 0) for p in profit_per_product)
+        
+        # Get total expenses for net profit calculation
+        total_expenses = db.get_total_expenses()
+        net_profit = total_gross_profit - total_expenses
         
         # Averages
         days_count = len(daily_trend) if daily_trend else 30
         daily_avg_revenue = total_revenue / days_count if days_count > 0 else 0
-        daily_avg_profit = total_profit / days_count if days_count > 0 else 0
+        daily_avg_profit = total_gross_profit / days_count if days_count > 0 else 0
         daily_avg_items = total_items / days_count if days_count > 0 else 0
         
-        # Profit margin
-        profit_margin = (total_profit / total_revenue * 100) if total_revenue > 0 else 0
+        # Profit margins
+        gross_profit_margin = (total_gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+        net_profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
         
         # Best day
         if daily_trend:
@@ -575,7 +765,10 @@ def admin_reports():
                              daily_avg_revenue=daily_avg_revenue,
                              daily_avg_profit=daily_avg_profit,
                              daily_avg_items=daily_avg_items,
-                             profit_margin=profit_margin,
+                             gross_profit_margin=gross_profit_margin,
+                             net_profit_margin=net_profit_margin,
+                             net_profit=net_profit,
+                             total_expenses=total_expenses,
                              best_day_revenue=best_day_revenue,
                              best_day_date=best_day_date,
                              growth_rate=growth_rate,
@@ -589,7 +782,10 @@ def admin_reports():
                              daily_avg_revenue=0,
                              daily_avg_profit=0,
                              daily_avg_items=0,
-                             profit_margin=0,
+                             gross_profit_margin=0,
+                             net_profit_margin=0,
+                             net_profit=0,
+                             total_expenses=0,
                              best_day_revenue=0,
                              best_day_date='N/A',
                              growth_rate=0,
@@ -651,7 +847,92 @@ def page_not_found(e):
 def internal_server_error(e):
     return render_template('500.html'), 500
 
-# -------- HELPER FUNCTIONS --------
+# ============ NEW CHART FUNCTIONS ============
+
+def generate_profit_chart(profit_data):
+    """Generate profit comparison chart"""
+    try:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        
+        categories = ['Revenue', 'Gross Profit', 'Net Profit']
+        values = [
+            profit_data.get('total_revenue', 0),
+            profit_data.get('total_gross_profit', 0),
+            profit_data.get('net_profit', 0)
+        ]
+        
+        colors = ['#3498db', '#2ecc71', '#e74c3c']
+        bars = ax.bar(categories, values, color=colors)
+        
+        ax.set_ylabel('Amount (KES)')
+        ax.set_title('Profit Analysis')
+        
+        # Add value labels
+        for bar in bars:
+            height = bar.get_height()
+            if height != 0:
+                ax.text(bar.get_x() + bar.get_width()/2., height,
+                       f'KES {height:,.0f}',
+                       ha='center', va='bottom', fontsize=10)
+        
+        plt.tight_layout()
+        img = io.BytesIO()
+        plt.savefig(img, format='png', dpi=100, bbox_inches='tight')
+        img.seek(0)
+        chart = base64.b64encode(img.getvalue()).decode('utf8')
+        plt.close(fig)
+        
+        return chart
+    except Exception as e:
+        print(f"Error generating profit chart: {e}")
+        return ""
+
+def generate_expense_chart(expenses_by_category):
+    """Generate expense breakdown chart"""
+    try:
+        # Filter only categories with expenses
+        filtered_expenses = [e for e in expenses_by_category if e.get('total_amount', 0) > 0]
+        
+        if not filtered_expenses:
+            return ""
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        category_names = [e.get('category_name', 'Unknown') for e in filtered_expenses]
+        amounts = [e.get('total_amount', 0) for e in filtered_expenses]
+        
+        # Sort by amount
+        sorted_data = sorted(zip(category_names, amounts), key=lambda x: x[1], reverse=True)
+        category_names, amounts = zip(*sorted_data) if sorted_data else ([], [])
+        
+        # Create bar chart
+        bars = ax.barh(category_names, amounts, color=plt.cm.Set3(np.linspace(0, 1, len(category_names))))
+        
+        ax.set_xlabel('Amount (KES)')
+        ax.set_title('Expenses by Category')
+        
+        # Add value labels
+        for bar in bars:
+            width = bar.get_width()
+            if width > 0:
+                ax.text(width, bar.get_y() + bar.get_height()/2.,
+                       f'KES {width:,.0f}',
+                       ha='left', va='center', fontsize=9)
+        
+        plt.tight_layout()
+        img = io.BytesIO()
+        plt.savefig(img, format='png', dpi=100, bbox_inches='tight')
+        img.seek(0)
+        chart = base64.b64encode(img.getvalue()).decode('utf8')
+        plt.close(fig)
+        
+        return chart
+    except Exception as e:
+        print(f"Error generating expense chart: {e}")
+        return ""
+
+# ============ HELPER FUNCTIONS ============
+
 def generate_charts(profit_per_product, daily_trend, top_products):
     """Generate chart images for reports"""
     charts = {
@@ -694,12 +975,12 @@ def generate_charts(profit_per_product, daily_trend, top_products):
         if daily_trend:
             fig2, ax2 = plt.subplots(figsize=(12, 6))
             dates = [datetime.strptime(d.get('date', '2000-01-01'), '%Y-%m-%d') for d in daily_trend]
-            daily_profits = [d.get('daily_profit', 0) for d in daily_trend]
+            daily_profits = [d.get('daily_gross_profit', 0) for d in daily_trend]
             
             ax2.plot(dates, daily_profits, marker='o', color='green', linewidth=2)
             ax2.set_xlabel('Date')
-            ax2.set_ylabel('Daily Profit (KES)')
-            ax2.set_title('Daily Profit Trend (Last 30 Days)')
+            ax2.set_ylabel('Daily Gross Profit (KES)')
+            ax2.set_title('Daily Gross Profit Trend (Last 30 Days)')
             ax2.tick_params(axis='x', rotation=45)
             ax2.grid(True, alpha=0.3)
             
@@ -735,6 +1016,7 @@ def generate_charts(profit_per_product, daily_trend, top_products):
         print(f"Error generating charts: {e}")
     
     return charts
+
 # ============ PASSWORD MANAGEMENT ROUTES ============
 
 @app.route('/change-password', methods=['GET', 'POST'])
@@ -866,7 +1148,266 @@ def delete_user(user_id):
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+    
+@app.route('/admin/simple-profit', methods=['GET', 'POST'])
+@login_required
+def simple_profit_calculator():
+    """Simple profit calculator for business owners"""
+    if not current_user.is_admin:
+        return redirect(url_for('employee_dashboard'))
+    
+    # Get profit data for the current month
+    today = date.today()
+    first_day = today.replace(day=1).isoformat()
+    last_day = today.isoformat()
+    
+    profit_data = db.get_profit_analysis(first_day, last_day)
+    
+    # Handle POST request (save expenses)
+    if request.method == 'POST':
+        try:
+            # Get category IDs (we need to ensure these categories exist)
+            categories = db.get_all_expense_categories()
+            
+            # Create a mapping of category names to IDs
+            category_map = {}
+            for cat in categories:
+                category_map[cat['name'].lower()] = cat['id']
+            
+            # Get form data
+            data = request.form
+            
+            # Helper function to save expense
+            def save_expense(category_name, amount, description):
+                if amount > 0:
+                    # Find or create category
+                    category_id = None
+                    if category_name.lower() in category_map:
+                        category_id = category_map[category_name.lower()]
+                    else:
+                        # Determine category type
+                        category_type = 'operating'
+                        if 'salary' in category_name.lower() or 'rent' in category_name.lower() or 'utility' in category_name.lower():
+                            category_type = 'operating'
+                        
+                        # Add new category
+                        try:
+                            category_id = db.add_expense_category(category_name, category_type)
+                            category_map[category_name.lower()] = category_id
+                        except Exception as e:
+                            print(f"Error adding category: {e}")
+                            return False
+                    
+                    # Save expense
+                    try:
+                        db.add_expense(category_id, amount, description)
+                        return True
+                    except Exception as e:
+                        print(f"Error adding expense: {e}")
+                        return False
+                return True
+            
+            # Save each expense category
+            expenses_saved = 0
+            
+            # Rent
+            if save_expense('Rent', float(data.get('rent', 0)), 'Monthly shop rent'):
+                expenses_saved += 1
+            
+            # Owner Salary
+            if save_expense('Owner Salary', float(data.get('owner_salary', 0)), 'Business owner salary'):
+                expenses_saved += 1
+            
+            # Employee Salaries
+            if save_expense('Employee Salaries', float(data.get('employee_salaries', 0)), 'Staff salaries'):
+                expenses_saved += 1
+            
+            # Electricity
+            if save_expense('Electricity', float(data.get('electricity', 0)), 'Monthly electricity bill'):
+                expenses_saved += 1
+            
+            # Water
+            if save_expense('Water', float(data.get('water', 0)), 'Monthly water bill'):
+                expenses_saved += 1
+            
+            # Transport
+            if save_expense('Transport', float(data.get('transport', 0)), 'Transport and logistics costs'):
+                expenses_saved += 1
+            
+            # Advertising
+            if save_expense('Advertising', float(data.get('advertising', 0)), 'Marketing and advertising costs'):
+                expenses_saved += 1
+            
+            # Miscellaneous
+            misc_amount = float(data.get('miscellaneous', 0))
+            if misc_amount > 0:
+                if save_expense('Miscellaneous Expenses', misc_amount, 'Other miscellaneous expenses'):
+                    expenses_saved += 1
+            
+            flash(f'{expenses_saved} expense categories saved successfully!', 'success')
+            return redirect(url_for('admin_expenses'))
+            
+        except Exception as e:
+            flash(f'Error saving expenses: {str(e)}', 'error')
+            return redirect(url_for('simple_profit_calculator'))
+    
+    # GET request - show calculator
+    return render_template('simple_profit.html', profit_data=profit_data)
 
+# ============ DATA RESET ROUTES ============
+
+@app.route('/admin/data-reset')
+@login_required
+def admin_data_reset():
+    """Data reset confirmation page"""
+    if not current_user.is_admin:
+        return redirect(url_for('employee_dashboard'))
+    
+    try:
+        # Get data counts
+        products = db.get_all_products()
+        sales = db.get_all_sales()
+        expenses = db.get_all_expenses()
+        categories = db.get_all_expense_categories()
+        
+        stats = {
+            'products': len(products),
+            'sales': len(sales),
+            'expenses': len(expenses),
+            'categories': len(categories),
+            'total_revenue': sum(s.get('total_price', 0) for s in sales),
+            'total_expenses': sum(e.get('amount', 0) for e in expenses)
+        }
+        
+        return render_template('admin_data_reset.html', stats=stats)
+    except Exception as e:
+        flash(f'Error loading data: {str(e)}', 'error')
+        return render_template('admin_data_reset.html', stats={})
+
+@app.route('/admin/delete-all-data', methods=['POST'])
+@login_required
+def delete_all_data():
+    """Delete ALL data from database (except users)"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        # Get confirmation from request
+        data = request.get_json()
+        confirm_text = data.get('confirm_text', '').strip().lower()
+        
+        if confirm_text != 'delete all data':
+            return jsonify({
+                'success': False, 
+                'error': 'Confirmation text incorrect. Please type "delete all data" exactly.'
+            })
+        
+        # Connect to database directly
+        conn = sqlite3.connect('instance/shop.db')
+        cursor = conn.cursor()
+        
+        # Start transaction
+        cursor.execute('BEGIN TRANSACTION')
+        
+        try:
+            # Delete data from tables in correct order (respecting foreign keys)
+            cursor.execute('DELETE FROM sales')
+            cursor.execute('DELETE FROM expenses')
+            cursor.execute('DELETE FROM expense_categories')
+            cursor.execute('DELETE FROM products')
+            
+            # Reset auto-increment counters (optional, but good practice)
+            cursor.execute('DELETE FROM sqlite_sequence WHERE name IN ("products", "sales", "expenses", "expense_categories")')
+            
+            # Commit transaction
+            conn.commit()
+            
+            # Close connection
+            conn.close()
+            
+            # Re-initialize the database (recreate default data)
+            db.init_db()
+            
+            return jsonify({
+                'success': True,
+                'message': 'All data has been deleted successfully. Database has been reset.'
+            })
+            
+        except Exception as e:
+            # Rollback on error
+            conn.rollback()
+            conn.close()
+            raise e
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error deleting data: {str(e)}'
+        })
+
+@app.route('/admin/delete-specific-data', methods=['POST'])
+@login_required
+def delete_specific_data():
+    """Delete specific types of data"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.get_json()
+        data_types = data.get('data_types', [])
+        
+        if not data_types:
+            return jsonify({'success': False, 'error': 'No data types selected'})
+        
+        conn = sqlite3.connect('instance/shop.db')
+        cursor = conn.cursor()
+        cursor.execute('BEGIN TRANSACTION')
+        
+        deleted_counts = {}
+        
+        try:
+            # Delete selected data types
+            if 'sales' in data_types:
+                cursor.execute('DELETE FROM sales')
+                deleted_counts['sales'] = cursor.rowcount
+            
+            if 'expenses' in data_types:
+                cursor.execute('DELETE FROM expenses')
+                cursor.execute('DELETE FROM expense_categories')
+                deleted_counts['expenses'] = cursor.rowcount
+            
+            if 'products' in data_types:
+                # First delete product images from filesystem
+                cursor.execute('SELECT image_filename FROM products WHERE image_filename IS NOT NULL')
+                images = cursor.fetchall()
+                for image in images:
+                    if image[0]:
+                        image_path = os.path.join(app.config['UPLOAD_FOLDER'], image[0])
+                        if os.path.exists(image_path):
+                            os.remove(image_path)
+                
+                cursor.execute('DELETE FROM products')
+                deleted_counts['products'] = cursor.rowcount
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Selected data deleted successfully.',
+                'deleted_counts': deleted_counts
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            raise e
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error deleting data: {str(e)}'
+        })
 # ============ MAIN ============
 if __name__ == '__main__':
     app.run(debug=True, port=5000, threaded=True)

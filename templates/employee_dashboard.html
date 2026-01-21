@@ -84,7 +84,7 @@
                                     <option value="{{ product.id }}" 
                                             data-price="{{ product.selling_price }}"
                                             data-stock="{{ product.quantity }}"
-                                            data-image="{{ url_for('uploaded_file', filename=product.image_filename) if product.image_filename else url_for('static', filename='img/default-product.png') }}">
+                                            data-image="{{ product.image_url }}">
                                         {{ product.name }} - KES {{ "%.2f"|format(product.selling_price) }}
                                     </option>
                                     {% endfor %}
@@ -119,7 +119,8 @@
                         <div class="preview-image">
                             <img id="productImage" 
                                  src="{{ url_for('static', filename='img/default-product.png') }}" 
-                                 alt="Product Image">
+                                 alt="Product Image"
+                                 onerror="this.src='{{ url_for('static', filename='img/default-product.png') }}'">
                         </div>
                         
                         <div class="preview-details">
@@ -176,7 +177,9 @@
                             <tr>
                                 <td>
                                     <div class="time-cell">
-                                        {% if sale.sale_date %}
+                                        {% if sale.display_time %}
+                                            {{ sale.display_time }}
+                                        {% elif sale.sale_date %}
                                             {% if sale.sale_date is string %}
                                                 {{ sale.sale_date.split(' ')[1][:5] if ' ' in sale.sale_date else sale.sale_date[:5] }}
                                             {% else %}
@@ -228,13 +231,37 @@
                         <i class="bi bi-grid-3x3-gap"></i>
                         <h3>Available Products</h3>
                     </div>
+                    <div class="products-search">
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="text" 
+                                   class="search-input" 
+                                   id="productSearch" 
+                                   placeholder="Search products..."
+                                   onkeyup="filterProducts()">
+                        </div>
+                        <div class="search-filters">
+                            <select id="stockFilter" class="filter-select" onchange="filterProducts()">
+                                <option value="all">All Stock</option>
+                                <option value="high">High Stock (>10)</option>
+                                <option value="medium">Medium Stock (6-10)</option>
+                                <option value="low">Low Stock (≤5)</option>
+                                <option value="out">Out of Stock (0)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 
-                <div class="products-container">
+                <div class="products-container" id="productsContainer">
                     {% for product in products %}
-                    <div class="product-card" onclick="selectProduct({{ product.id }})">
+                    <div class="product-card" 
+                         onclick="selectProduct({{ product.id }})"
+                         data-name="{{ product.name|lower }}"
+                         data-price="{{ product.selling_price }}"
+                         data-stock="{{ product.quantity }}"
+                         data-stock-level="{% if product.quantity > 10 %}high{% elif product.quantity > 5 %}medium{% elif product.quantity > 0 %}low{% else %}out{% endif %}">
                         <div class="product-image">
-                            <img src="{{ url_for('uploaded_file', filename=product.image_filename) if product.image_filename else url_for('static', filename='img/default-product.png') }}" 
+                            <img src="{{ product.image_url }}" 
                                  alt="{{ product.name }}"
                                  onerror="this.src='{{ url_for('static', filename='img/default-product.png') }}'">
                         </div>
@@ -256,6 +283,17 @@
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+                
+                <!-- Search Results Info -->
+                <div class="search-info" id="searchInfo" style="display: none;">
+                    <div class="info-content">
+                        <span id="resultsCount">0</span> products found
+                        <button class="clear-search" onclick="clearSearch()">
+                            <i class="bi bi-x-circle"></i>
+                            Clear search
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -498,6 +536,106 @@
     font-weight: 700;
     color: #1e293b;
     margin: 0;
+}
+
+/* Products Search Bar */
+.products-search {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.search-box {
+    position: relative;
+    width: 100%;
+}
+
+.search-box i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 16px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.search-filters {
+    display: flex;
+    gap: 8px;
+}
+
+.filter-select {
+    flex: 1;
+    padding: 10px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* Search Info */
+.search-info {
+    padding: 16px 24px;
+    background: #f1f5f9;
+    border-top: 1px solid #e2e8f0;
+}
+
+.info-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.info-content #resultsCount {
+    font-weight: 700;
+    color: #3b82f6;
+}
+
+.clear-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clear-search:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #ef4444;
 }
 
 /* Sale Form */
@@ -1039,9 +1177,102 @@ document.getElementById('saleForm').addEventListener('submit', function(e) {
     }
 });
 
+// Product Search and Filter Functions
+function filterProducts() {
+    const searchInput = document.getElementById('productSearch').value.toLowerCase();
+    const stockFilter = document.getElementById('stockFilter').value;
+    const productCards = document.querySelectorAll('.product-card');
+    let visibleCount = 0;
+    
+    productCards.forEach(card => {
+        const productName = card.getAttribute('data-name');
+        const stockLevel = card.getAttribute('data-stock-level');
+        const matchesSearch = productName.includes(searchInput);
+        const matchesStock = stockFilter === 'all' || stockLevel === stockFilter;
+        
+        if (matchesSearch && matchesStock) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    // Show/hide search info
+    const searchInfo = document.getElementById('searchInfo');
+    const resultsCount = document.getElementById('resultsCount');
+    const emptyProducts = document.querySelector('.empty-products');
+    
+    if (searchInput || stockFilter !== 'all') {
+        searchInfo.style.display = 'block';
+        resultsCount.textContent = visibleCount;
+    } else {
+        searchInfo.style.display = 'none';
+    }
+    
+    // Show empty state if no products match
+    if (visibleCount === 0 && productCards.length > 0) {
+        if (!emptyProducts) {
+            const productsContainer = document.getElementById('productsContainer');
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty-products';
+            emptyDiv.innerHTML = `
+                <div class="empty-content">
+                    <i class="bi bi-search"></i>
+                    <span>No products found</span>
+                    <small>Try different search terms or filters</small>
+                </div>
+            `;
+            productsContainer.appendChild(emptyDiv);
+        }
+    } else if (emptyProducts) {
+        emptyProducts.remove();
+    }
+}
+
+function clearSearch() {
+    document.getElementById('productSearch').value = '';
+    document.getElementById('stockFilter').value = 'all';
+    filterProducts();
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Focus search when Ctrl/Cmd + F is pressed
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        document.getElementById('productSearch').focus();
+    }
+    
+    // Clear search with Escape
+    if (e.key === 'Escape') {
+        const searchInput = document.getElementById('productSearch');
+        if (document.activeElement === searchInput && searchInput.value) {
+            clearSearch();
+            searchInput.blur();
+        }
+    }
+});
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     updateProductDetails();
+    
+    // Add data attributes for search
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach(card => {
+        const priceElement = card.querySelector('.product-price');
+        if (priceElement) {
+            const priceText = priceElement.textContent.replace('KES ', '');
+            card.setAttribute('data-price', parseFloat(priceText));
+        }
+        
+        const stockElement = card.querySelector('.product-stock');
+        if (stockElement) {
+            const stockText = stockElement.textContent.replace(' in stock', '');
+            card.setAttribute('data-stock', parseInt(stockText));
+        }
+    });
 });
 </script>
 {% endblock %}
