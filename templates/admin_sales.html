@@ -8,11 +8,66 @@
 <!-- Filter Section -->
 <div class="dashboard-card">
     <div class="card-header">
-        
+        <div class="header-content">
+            <h5 class="card-title">Filter Sales</h5>
+            <p class="card-subtitle">View sales within a specific date range</p>
+        </div>
     </div>
     <div class="card-body">
-        
-          
+        <form method="GET" action="{{ url_for('admin_sales') }}" class="filter-form">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="start_date" class="form-label">
+                        <i class="bi bi-calendar-week"></i>
+                        <span>Start Date</span>
+                    </label>
+                    <input type="date" 
+                           id="start_date" 
+                           name="start_date" 
+                           class="form-input"
+                           value="{{ request.args.get('start_date', '') }}">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="end_date" class="form-label">
+                        <i class="bi bi-calendar-week"></i>
+                        <span>End Date</span>
+                    </label>
+                    <input type="date" 
+                           id="end_date" 
+                           name="end_date" 
+                           class="form-input"
+                           value="{{ request.args.get('end_date', '') }}">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="product_filter" class="form-label">
+                        <i class="bi bi-filter"></i>
+                        <span>Product Filter</span>
+                    </label>
+                    <select id="product_filter" name="product_id" class="form-select">
+                        <option value="">All Products</option>
+                        {% for product in all_products %}
+                        <option value="{{ product.id }}" 
+                                {% if request.args.get('product_id')|int == product.id %}selected{% endif %}>
+                            {{ product.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group filter-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="bi bi-funnel"></i>
+                        <span>Apply Filter</span>
+                    </button>
+                    <a href="{{ url_for('admin_sales') }}" class="btn-secondary">
+                        <i class="bi bi-x-circle"></i>
+                        <span>Clear</span>
+                    </a>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -86,103 +141,130 @@
             <h5 class="card-title">Sales Records</h5>
             <p class="card-subtitle">Detailed transaction history</p>
         </div>
-        <button type="button" class="btn-secondary" onclick="exportToCSV()">
-            <i class="bi bi-download"></i>
-            <span>Export CSV</span>
-        </button>
+        <div class="header-actions">
+            <button type="button" class="btn-secondary export-btn" onclick="exportToCSV()">
+                <i class="bi bi-download"></i>
+                <span>Export CSV</span>
+            </button>
+        </div>
     </div>
     <div class="card-body">
-        <div class="data-table">
-            <table class="table" id="salesTable">
-                <thead>
-                    <tr>
-                        <th>Date & Time</th>
-                        <th>Product</th>
-                        <th>Quantity</th>
-                        <th>Unit Price</th>
-                        <th>Revenue</th>
-                        <th>Profit</th>
-                        <th>Margin</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sale in sales %}
-                    <tr>
-                        <td>
-                            <div class="date-cell">
-                                {% if sale.display_date %}
-                                    <span class="date">{{ sale.display_date.split(' ')[0] if ' ' in sale.display_date else sale.display_date }}</span>
-                                    <span class="time">{{ sale.display_date.split(' ')[1] if ' ' in sale.display_date else '' }}</span>
-                                {% elif sale.sale_date %}
-                                    {% if sale.sale_date is string %}
-                                        <span class="date">{{ sale.sale_date.split(' ')[0] if ' ' in sale.sale_date else sale.sale_date }}</span>
-                                        <span class="time">{{ sale.sale_date.split(' ')[1][:5] if ' ' in sale.sale_date else sale.sale_date[:5] }}</span>
+        <div class="data-table-container">
+            <div class="table-responsive-wrapper">
+                <table class="data-table" id="salesTable">
+                    <thead>
+                        <tr>
+                            <th class="datetime-col">Date & Time</th>
+                            <th class="product-col">Product</th>
+                            <th class="quantity-col mobile-hidden">Qty Sold</th>
+                            <th class="stock-col">Stock Left</th>
+                            <th class="price-col mobile-hidden">Unit Price</th>
+                            <th class="revenue-col">Revenue</th>
+                            <th class="profit-col">Profit</th>
+                            <th class="margin-col">Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                        <tr data-product-id="{{ sale.product_id }}">
+                            <td data-label="Date & Time">
+                                <div class="datetime-cell">
+                                    {% if sale.display_date %}
+                                        <span class="date">{{ sale.display_date.split(' ')[0] if ' ' in sale.display_date else sale.display_date }}</span>
+                                        <span class="time">{{ sale.display_date.split(' ')[1] if ' ' in sale.display_date else '' }}</span>
+                                    {% elif sale.sale_date %}
+                                        {% if sale.sale_date is string %}
+                                            <span class="date">{{ sale.sale_date.split(' ')[0] if ' ' in sale.sale_date else sale.sale_date }}</span>
+                                            <span class="time">{{ sale.sale_date.split(' ')[1][:5] if ' ' in sale.sale_date else sale.sale_date[:5] }}</span>
+                                        {% else %}
+                                            <span class="date">{{ sale.sale_date.strftime('%d/%m/%Y') }}</span>
+                                            <span class="time">{{ sale.sale_date.strftime('%I:%M %p') }}</span>
+                                        {% endif %}
                                     {% else %}
                                         <span class="date">N/A</span>
                                     {% endif %}
-                                {% else %}
-                                    <span class="date">N/A</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="product-cell">
-                                <span class="product-name">{{ sale.product_name }}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="quantity-cell">
-                                <span class="quantity-value">{{ sale.quantity_sold }}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="price-cell">
-                                <span class="currency">KES</span>
-                                {% if sale.quantity_sold and sale.total_price %}
-                                <span class="amount">{{ "%.2f"|format(sale.total_price / sale.quantity_sold) }}</span>
-                                {% else %}
-                                <span class="amount">0.00</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="revenue-cell">
-                                <span class="currency">KES</span>
-                                <span class="amount">{{ "%.2f"|format(sale.total_price) }}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="profit-cell">
-                                <span class="currency">KES</span>
-                                <span class="amount">{{ "%.2f"|format(sale.profit) }}</span>
-                            </div>
-                        </td>
-                        <td>
-                            {% if sale.profit and sale.total_price and sale.total_price > 0 %}
-                                {% set margin = (sale.profit / sale.total_price) * 100 %}
-                                <div class="margin-indicator {% if margin > 30 %}high{% elif margin > 15 %}medium{% elif margin > 0 %}low{% else %}zero{% endif %}">
-                                    <span class="margin-value">{{ "%.1f"|format(margin) }}%</span>
                                 </div>
-                            {% else %}
-                                <div class="margin-indicator zero">
-                                    <span class="margin-value">0%</span>
+                            </td>
+                            <td data-label="Product">
+                                <div class="product-cell">
+                                    <span class="product-name">{{ sale.product_name }}</span>
                                 </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="empty-state">
-                            <div class="empty-content">
-                                <i class="bi bi-receipt"></i>
-                                <p>No sales records found</p>
-                                <small>Start selling products to see records here</small>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </td>
+                            <td data-label="Qty Sold" class="mobile-hidden">
+                                <div class="quantity-cell">
+                                    <span class="quantity-value">{{ sale.quantity_sold }}</span>
+                                </div>
+                            </td>
+                            <td data-label="Current Stock">
+                                <div class="stock-cell">
+                                    {% set stock_left = sale.current_stock if sale.current_stock is defined else 0 %}
+                                    {% if stock_left <= 5 %}
+                                        {% set stock_class = 'danger' %}
+                                    {% elif stock_left <= 10 %}
+                                        {% set stock_class = 'warning' %}
+                                    {% else %}
+                                        {% set stock_class = 'good' %}
+                                    {% endif %}
+                                    
+                                    <div class="stock-cell {{ stock_class }}">
+                                        <span class="stock-value">{{ stock_left }}</span>
+                                        <span class="stock-unit">units</span>
+                                    </div>
+                                    <small class="text-muted">(current)</small>
+                                </div>
+                            </td>
+                            <td data-label="Unit Price" class="mobile-hidden">
+                                <div class="price-cell">
+                                    <span class="price-label">KES</span>
+                                    <span class="price-amount">{{ "%.2f"|format(sale.total_price / sale.quantity_sold if sale.quantity_sold else 0) }}</span>
+                                </div>
+                            </td>
+                            <td data-label="Revenue">
+                                <div class="value-cell">
+                                    <span class="value-amount">KES {{ "%.2f"|format(sale.total_price) }}</span>
+                                </div>
+                            </td>
+                            <td data-label="Profit">
+                                <div class="profit-cell">
+                                    <span class="profit-value">KES {{ "%.2f"|format(sale.profit) }}</span>
+                                </div>
+                            </td>
+                            <td data-label="Margin">
+                                {% if sale.profit and sale.total_price and sale.total_price > 0 %}
+                                    {% set margin = (sale.profit / sale.total_price) * 100 %}
+                                    {% if margin > 30 %}
+                                        {% set margin_class = 'high' %}
+                                    {% elif margin > 15 %}
+                                        {% set margin_class = 'medium' %}
+                                    {% elif margin > 0 %}
+                                        {% set margin_class = 'low' %}
+                                    {% else %}
+                                        {% set margin_class = 'zero' %}
+                                    {% endif %}
+                                    <div class="margin-indicator {{ margin_class }}">
+                                        <span class="margin-value">{{ "%.1f"|format(margin) }}%</span>
+                                    </div>
+                                {% else %}
+                                    <div class="margin-indicator zero">
+                                        <span class="margin-value">0%</span>
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-content">
+                                    <i class="bi bi-receipt"></i>
+                                    <p>No sales records found</p>
+                                    <small>Start selling products to see records here</small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         
         <!-- Pagination -->
@@ -190,24 +272,28 @@
         <div class="table-pagination">
             <nav class="pagination-nav">
                 <button class="pagination-btn {% if page == 1 %}disabled{% endif %}" 
-                        {% if page > 1 %}onclick="window.location.href='?page={{ page-1 }}'"{% endif %}>
+                        {% if page > 1 %}onclick="window.location.href='?page={{ page-1 }}{% if request.args.get('start_date') %}&start_date={{ request.args.get('start_date') }}{% endif %}{% if request.args.get('end_date') %}&end_date={{ request.args.get('end_date') }}{% endif %}{% if request.args.get('product_id') %}&product_id={{ request.args.get('product_id') }}{% endif %}'"{% endif %}>
                     <i class="bi bi-chevron-left"></i>
                 </button>
                 
                 {% for p in range(1, total_pages+1) %}
                     {% if p >= page-2 and p <= page+2 %}
                     <button class="pagination-btn {% if p == page %}active{% endif %}"
-                            onclick="window.location.href='?page={{ p }}'">
+                            onclick="window.location.href='?page={{ p }}{% if request.args.get('start_date') %}&start_date={{ request.args.get('start_date') }}{% endif %}{% if request.args.get('end_date') %}&end_date={{ request.args.get('end_date') }}{% endif %}{% if request.args.get('product_id') %}&product_id={{ request.args.get('product_id') }}{% endif %}'">
                         {{ p }}
                     </button>
                     {% endif %}
                 {% endfor %}
                 
                 <button class="pagination-btn {% if page == total_pages %}disabled{% endif %}"
-                        {% if page < total_pages %}onclick="window.location.href='?page={{ page+1 }}'"{% endif %}>
+                        {% if page < total_pages %}onclick="window.location.href='?page={{ page+1 }}{% if request.args.get('start_date') %}&start_date={{ request.args.get('start_date') }}{% endif %}{% if request.args.get('end_date') %}&end_date={{ request.args.get('end_date') }}{% endif %}{% if request.args.get('product_id') %}&product_id={{ request.args.get('product_id') }}{% endif %}'"{% endif %}>
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </nav>
+            <div class="pagination-info">
+                <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+                <span class="record-info">Showing {{ sales|length }} records</span>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -216,6 +302,44 @@
 
 {% block extra_css %}
 <style>
+/* Base Mobile Styles */
+.dashboard-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid #eef2f7;
+    margin-bottom: 16px;
+}
+
+.card-header {
+    padding: 16px;
+    border-bottom: 1px solid #eef2f7;
+    background: #f8fafc;
+}
+
+.header-content {
+    flex: 1;
+    margin-bottom: 12px;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 4px 0;
+}
+
+.card-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+.header-actions {
+    flex-shrink: 0;
+}
+
 /* Filter Form */
 .filter-form {
     margin: 0;
@@ -223,8 +347,8 @@
 
 .filter-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
+    grid-template-columns: 1fr;
+    gap: 16px;
 }
 
 .filter-group {
@@ -249,6 +373,8 @@
     font-size: 14px;
     background: white;
     transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .form-input:focus, .form-select:focus {
@@ -257,54 +383,98 @@
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* KPI Grid */
+/* Filter Actions */
+.filter-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+.btn-primary, .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    flex: 1;
+    text-align: center;
+    min-height: 44px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: #667eea;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-secondary {
+    background: white;
+    color: #475569;
+    border: 2px solid #e2e8f0;
+}
+
+.btn-secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+/* KPI Grid - Mobile First */
 .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .kpi-card {
     background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     border: 1px solid #eef2f7;
     transition: all 0.3s ease;
-}
-
-.kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-    border-color: #e0e7ff;
 }
 
 .kpi-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .kpi-label {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    line-height: 1.3;
 }
 
 .kpi-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    font-size: 16px;
     color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    flex-shrink: 0;
 }
 
 .kpi-card:nth-child(1) .kpi-icon {
@@ -324,17 +494,19 @@
 }
 
 .kpi-value {
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 700;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     line-height: 1.2;
     color: #1e293b;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .kpi-trend {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    padding-top: 12px;
+    padding-top: 8px;
     border-top: 1px solid #f1f5f9;
 }
 
@@ -342,121 +514,82 @@
     color: #64748b;
 }
 
-/* Dashboard Card */
-.dashboard-card {
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #eef2f7;
-}
-
-.card-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #eef2f7;
-    background: #f8fafc;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header-content {
-    flex: 1;
-}
-
-.card-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1e293b;
-    margin: 0 0 4px 0;
-}
-
-.card-subtitle {
-    font-size: 14px;
-    color: #64748b;
-    margin: 0;
-}
-
-.btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    background: white;
-    color: #475569;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 14px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    transform: translateY(-1px);
-}
-
-/* Data Table */
-.data-table {
+/* Table Styles - Mobile First */
+.data-table-container {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: -16px;
+    padding: 16px;
 }
 
-.table {
+.table-responsive-wrapper {
+    min-width: 768px;
+}
+
+.data-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
 }
 
-.table thead th {
+.data-table thead th {
     background: #f8fafc;
-    padding: 16px 20px;
+    padding: 14px 12px;
     text-align: left;
     font-weight: 600;
     color: #475569;
-    font-size: 13px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
 }
 
-.table tbody tr {
+.data-table tbody tr {
     border-bottom: 1px solid #f1f5f9;
     transition: background 0.2s ease;
 }
 
-.table tbody tr:hover {
+.data-table tbody tr:hover {
     background: #f8fafc;
 }
 
-.table tbody td {
-    padding: 16px 20px;
+.data-table tbody td {
+    padding: 14px 12px;
     vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+/* Mobile Hidden Columns */
+.mobile-hidden {
+    display: table-cell;
 }
 
 /* Table Cells */
-.date-cell {
+.datetime-cell {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 100px;
 }
 
 .date {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: #1e293b;
+    white-space: nowrap;
 }
 
 .time {
     font-size: 12px;
     color: #64748b;
     font-family: 'Courier New', monospace;
+    white-space: nowrap;
 }
 
 .product-cell {
-    max-width: 200px;
+    min-width: 120px;
+    max-width: 180px;
 }
 
 .product-name {
@@ -464,6 +597,10 @@
     font-weight: 600;
     color: #1e293b;
     line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .quantity-cell {
@@ -473,53 +610,95 @@
 .quantity-value {
     display: inline-block;
     background: #f1f5f9;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    min-width: 30px;
+}
+
+/* Stock Cell - Updated to match Products page */
+.stock-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
-    color: #475569;
-    min-width: 40px;
+    white-space: nowrap;
 }
 
-.price-cell, .revenue-cell, .profit-cell {
+.stock-cell.good {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.stock-cell.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.stock-cell.danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.stock-value {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.stock-unit {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Price Cells - Updated to match Products page */
+.price-cell, .value-cell, .profit-cell {
     display: flex;
     align-items: baseline;
     gap: 4px;
     font-family: 'Courier New', monospace;
     font-weight: 600;
+    white-space: nowrap;
 }
 
-.price-cell .currency,
-.revenue-cell .currency,
-.profit-cell .currency {
-    font-size: 12px;
+.price-cell .price-label {
+    font-size: 11px;
     color: #94a3b8;
 }
 
-.price-cell .amount,
-.revenue-cell .amount,
-.profit-cell .amount {
-    font-size: 14px;
+.price-cell .price-amount,
+.value-cell .value-amount {
+    font-size: 13px;
     color: #334155;
 }
 
-.revenue-cell .amount {
-    color: #667eea;
+.value-cell {
+    min-width: 90px;
 }
 
-.profit-cell .amount {
+.profit-cell {
+    min-width: 90px;
+}
+
+.profit-value {
     color: #10b981;
+    font-size: 13px;
 }
 
 /* Margin Indicator */
 .margin-indicator {
     display: inline-block;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 11px;
     font-weight: 700;
     text-align: center;
-    min-width: 60px;
+    min-width: 50px;
+    white-space: nowrap;
 }
 
 .margin-indicator.high {
@@ -543,12 +722,12 @@
 }
 
 .margin-value {
-    font-size: 13px;
+    font-size: 12px;
 }
 
 /* Empty State */
 .empty-state {
-    padding: 48px 24px;
+    padding: 40px 20px;
 }
 
 .empty-content {
@@ -560,7 +739,7 @@
 }
 
 .empty-content i {
-    font-size: 48px;
+    font-size: 36px;
     color: #cbd5e1;
 }
 
@@ -573,37 +752,42 @@
 
 .empty-content small {
     color: #94a3b8;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 /* Pagination */
 .table-pagination {
-    padding-top: 24px;
+    padding-top: 20px;
     border-top: 1px solid #eef2f7;
-    margin-top: 24px;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .pagination-nav {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .pagination-btn {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     border: 2px solid #e2e8f0;
     border-radius: 8px;
     background: white;
     color: #64748b;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 .pagination-btn:hover:not(.disabled) {
@@ -622,34 +806,385 @@
     cursor: not-allowed;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+.pagination-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #64748b;
+    padding: 0 8px;
+}
+
+.page-info, .record-info {
+    font-weight: 600;
+}
+
+/* Export Button */
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: white;
+    color: #475569;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 44px;
+}
+
+.export-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+/* Tablet Styles (768px and up) */
+@media (min-width: 768px) {
+    .dashboard-card {
+        margin-bottom: 20px;
+    }
+    
+    .card-header {
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .header-content {
+        margin-bottom: 0;
+    }
+    
+    .card-title {
+        font-size: 18px;
+    }
+    
+    .card-subtitle {
+        font-size: 14px;
+    }
+    
     .filter-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    
+    .filter-actions {
+        padding-top: 0;
+        align-items: flex-end;
     }
     
     .kpi-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+    
+    .kpi-card {
+        padding: 20px;
+    }
+    
+    .kpi-label {
+        font-size: 13px;
+    }
+    
+    .kpi-icon {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+    }
+    
+    .kpi-value {
+        font-size: 28px;
+    }
+    
+    .data-table-container {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .table-responsive-wrapper {
+        min-width: 0;
+    }
+    
+    .data-table thead th {
+        padding: 16px;
+        font-size: 13px;
+    }
+    
+    .data-table tbody td {
+        padding: 16px;
+    }
+    
+    /* Updated Stock Cell for desktop */
+    .stock-cell {
+        padding: 8px 12px;
+    }
+    
+    .stock-value {
+        font-size: 15px;
+    }
+    
+    .stock-unit {
+        font-size: 13px;
+    }
+    
+    .price-cell .price-label {
+        font-size: 12px;
+    }
+    
+    .price-cell .price-amount,
+    .value-cell .value-amount {
+        font-size: 14px;
+    }
+    
+    .profit-value {
+        font-size: 14px;
+    }
+    
+    .margin-indicator {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .margin-value {
+        font-size: 13px;
+    }
+    
+    .pagination-btn {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .export-btn span {
+        display: inline;
+    }
+}
+
+/* Desktop Styles (1024px and up) */
+@media (min-width: 1024px) {
+    .dashboard-card {
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+    
+    .card-header {
+        padding: 24px;
+    }
+    
+    .filter-grid {
+        gap: 24px;
+    }
+    
+    .kpi-grid {
+        gap: 24px;
+    }
+    
+    .kpi-card {
+        padding: 24px;
+        border-radius: 12px;
+    }
+    
+    .kpi-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+    
+    .kpi-value {
+        font-size: 32px;
+    }
+    
+    .kpi-trend {
+        font-size: 13px;
+    }
+    
+    .data-table thead th {
+        padding: 18px 20px;
+    }
+    
+    .data-table tbody td {
+        padding: 18px 20px;
+    }
+    
+    .date {
+        font-size: 14px;
+    }
+    
+    .time {
+        font-size: 13px;
+    }
+    
+    .product-name {
+        font-size: 15px;
+    }
+    
+    /* Updated Stock Cell for large desktop */
+    .stock-cell {
+        padding: 8px 16px;
+    }
+    
+    .stock-value {
+        font-size: 16px;
+    }
+    
+    .price-cell .price-label {
+        font-size: 13px;
+    }
+    
+    .price-cell .price-amount,
+    .value-cell .value-amount {
+        font-size: 15px;
+    }
+    
+    .profit-value {
+        font-size: 15px;
+    }
+}
+
+/* Small Mobile Styles (480px and below) */
+@media (max-width: 480px) {
+    .kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
     
     .card-header {
         flex-direction: column;
         align-items: stretch;
-        gap: 16px;
+        gap: 12px;
     }
     
-    .btn-secondary {
+    .header-actions {
         align-self: flex-start;
+    }
+    
+    .export-btn span {
+        display: none;
+    }
+    
+    .export-btn i {
+        margin: 0;
+    }
+    
+    .btn-primary, .btn-secondary {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+    
+    .mobile-hidden {
+        display: none;
+    }
+    
+    /* Make table responsive on small screens */
+    .table-responsive-wrapper {
+        min-width: 100%;
+    }
+    
+    .data-table {
+        display: block;
+    }
+    
+    .data-table thead {
+        display: none;
+    }
+    
+    .data-table tbody,
+    .data-table tr,
+    .data-table td {
+        display: block;
+        width: 100%;
+    }
+    
+    .data-table tr {
+        margin-bottom: 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        padding: 0;
+    }
+    
+    .data-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 44px;
+    }
+    
+    .data-table td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #475569;
+        font-size: 13px;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+    
+    .data-table td:last-child {
+        border-bottom: none;
+    }
+    
+    /* Adjust stock display for mobile */
+    .stock-cell {
+        justify-content: flex-end;
+    }
+    
+    .empty-state {
+        display: table-cell;
+        text-align: center;
     }
 }
 
-@media (max-width: 480px) {
-    .kpi-grid {
-        grid-template-columns: 1fr;
+/* Medium Mobile (481px to 767px) */
+@media (min-width: 481px) and (max-width: 767px) {
+    .table-responsive-wrapper {
+        min-width: 600px;
     }
     
-    .kpi-value {
-        font-size: 28px;
+    .export-btn span {
+        display: inline;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .card-header,
+    .filter-form,
+    .btn-secondary,
+    .pagination,
+    .export-btn {
+        display: none !important;
+    }
+    
+    .dashboard-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+    
+    .kpi-grid {
+        page-break-inside: avoid;
+    }
+    
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .data-table th,
+    .data-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+    }
+    
+    .data-table th {
+        background: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact;
+        color-adjust: exact;
     }
 }
 </style>
@@ -683,6 +1218,8 @@ function exportToCSV() {
                 text = text.replace('KES', '').trim();
             } else if (index === 6) { // Margin
                 text = text.replace('%', '').trim();
+            } else if (index === 2) { // Stock
+                text = text.replace('units', '').trim();
             }
             
             rowData.push(`"${text}"`);
@@ -721,17 +1258,50 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Date validation
     const form = document.querySelector('form');
-    form.addEventListener('submit', function(e) {
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
-        
-        if (startDate && endDate && startDate > endDate) {
-            e.preventDefault();
-            alert('Start date cannot be after end date');
-            return false;
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            if (startDate && endDate && startDate > endDate) {
+                e.preventDefault();
+                alert('Start date cannot be after end date');
+                return false;
+            }
+            return true;
+        });
+    }
+    
+    // Handle mobile table interactions
+    if (window.innerWidth <= 480) {
+        const tableRows = document.querySelectorAll('.data-table tbody tr:not(.empty-state)');
+        tableRows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (!e.target.closest('.action-btn')) {
+                    this.classList.toggle('expanded');
+                }
+            });
+        });
+    }
+});
+
+// Handle window resize for responsive adjustments
+window.addEventListener('resize', function() {
+    const exportBtn = document.querySelector('.export-btn');
+    const isSmallMobile = window.innerWidth <= 480;
+    
+    if (exportBtn) {
+        const span = exportBtn.querySelector('span');
+        if (span) {
+            if (isSmallMobile) {
+                span.style.display = 'none';
+            } else if (window.innerWidth <= 767) {
+                span.style.display = 'inline';
+            } else {
+                span.style.display = 'inline';
+            }
         }
-        return true;
-    });
+    }
 });
 </script>
 {% endblock %}
